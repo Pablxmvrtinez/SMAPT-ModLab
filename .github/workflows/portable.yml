@@ -1,0 +1,52 @@
+name: Paquetes portables
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependencias de construcción
+        env:
+          CMAKE_ARGS: '-DGGML_NATIVE=OFF -DGGML_CUDA=OFF'
+          CMAKE_BUILD_PARALLEL_LEVEL: '3'
+        run: python -m pip install -r requirements.txt "pyinstaller>=6.16,<7"
+      - name: Preparar modelo integrado
+        run: python scripts/fetch_model.py
+      - name: Pruebas
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover -s tests -v
+      - name: Construir portable
+        env:
+          SMAPT_CATALOG_URL: ${{ vars.SMAPT_CATALOG_URL }}
+        run: python build_portable.py
+      - name: Verificar ejecutable Linux
+        if: runner.os == 'Linux'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: dist/SMAPT-ModLab/SMAPT-ModLab --smoke
+      - name: Verificar ejecutable Windows
+        if: runner.os == 'Windows'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath 'dist/SMAPT-ModLab/SMAPT-ModLab.exe' -ArgumentList '--smoke' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { exit $process.ExitCode }
+      - name: Guardar paquete
+        uses: actions/upload-artifact@v4
+        with:
+          name: SMAPT-ModLab-${{ runner.os }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+          if-no-files-found: error
