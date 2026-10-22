@@ -1,5 +1,6 @@
 """S.M.A.P.T. ModLab: catálogo visual CurseForge y diseñador con IA integrada."""
 import json
+import re
 import sys
 from pathlib import Path
 from threading import Event
@@ -15,7 +16,7 @@ from curseforge import CurseForgeClient,Connection,CatalogError,connection_from_
 from intelligence import ExperienceDesigner,plan_text
 from local_ai import LocalAI
 from modpack import build_pack,resolve_loader_version,audit_pack
-from core import hardware,instances,recommend,apply_graphics,save_plan
+from core import hardware,instances,recommend,apply_graphics,restore_graphics,latest_graphics_backup,save_plan
 from visual_widgets import Images,Artwork,CardGrid,Cover,LABELS
 
 STYLE="""
@@ -266,6 +267,9 @@ class ModLab(QMainWindow):
         self.apply_btn.setObjectName("primary")
         self.apply_btn.clicked.connect(self.apply)
         v.addWidget(self.apply_btn)
+        self.restore_btn=QPushButton("Restaurar última copia de gráficos")
+        self.restore_btn.clicked.connect(self.restore)
+        v.addWidget(self.restore_btn)
         note=QLabel("Se ajustan renderizado, simulación, FPS, partículas y el interruptor de shaders de Oculus cuando existe. La RAM de Java solo se recomienda: debes asignarla desde el lanzador. No tocamos mundos, mods ni configuraciones de servidores.")
         note.setWordWrap(True);note.setObjectName("muted")
         v.addWidget(note);v.addStretch()
@@ -277,7 +281,7 @@ class ModLab(QMainWindow):
             f"<b>CPU:</b> {h['cpu']} ({h['threads']} hilos)<br>"
             f"<b>GPU:</b> {h['gpu']} • VRAM {h['vram_gb']} GB<br>"
             f"<b>RAM:</b> {h['ram_gb']} GB • disponible ahora {h['ram_available_gb']} GB<br>"
-            "<b>Sistema:</b> CachyOS / KDE Plasma")
+            f"<b>Sistema:</b> {h.get('system', 'Desconocido')}")
         self.pack_table.setRowCount(len(self.packs))
         for r,p in enumerate(self.packs):
             for c,val in enumerate([p["name"],p["launcher"],str(p["mods"]),p["version"] or "Desconocida"]):
@@ -297,13 +301,13 @@ class ModLab(QMainWindow):
     def update_connection_label(self):
         connected=bool(self.catalog.connection.gateway or self.catalog.connection.api_key)
         self.connection_label.setText('CURSEFORGE\nConexión configurada' if connected else 'CURSEFORGE\nCatálogo pendiente de conexión')
-        if not connected:self.browse_info.setText('El catálogo oficial todavía no está conectado. Abre «Conexión del catálogo» para configurar la pasarela de ModLab.')
+        if not connected:self.browse_info.setText('Catálogo no conectado. Para desarrollo, configura una clave propia autorizada desde «Conexión del catálogo».')
 
     def configure_connection(self):
         if self.busy:return
         dialog=QDialog(self);dialog.setWindowTitle('Conexión de CurseForge');dialog.resize(570,270)
-        v=QVBoxLayout(dialog);label=QLabel('Para distribuir ModLab, el desarrollador conecta una pasarela que protege su clave de CurseForge. Tus amigos reciben la URL ya configurada.');label.setWordWrap(True);v.addWidget(label)
-        form=QFormLayout();url=QLineEdit(self.catalog.connection.gateway);url.setPlaceholderText('https://catalogo.tu-servidor.com')
+        v=QVBoxLayout(dialog);label=QLabel('Para pruebas personales, configura tu clave autorizada de CurseForge. No incluyas claves en descargas públicas. Las pasarelas remotas requieren autorización expresa del proveedor.');label.setWordWrap(True);v.addWidget(label)
+        form=QFormLayout();url=QLineEdit(self.catalog.connection.gateway);url.setPlaceholderText('URL autorizada (opcional; uso de desarrollo)')
         key=QLineEdit();key.setEchoMode(QLineEdit.EchoMode.Password);key.setPlaceholderText('Solo desarrollo · no se guarda ni se incluye en el paquete')
         form.addRow('Pasarela del catálogo',url);form.addRow('Clave API de desarrollo',key);v.addLayout(form)
         error=QLabel();error.setWordWrap(True);v.addWidget(error)
@@ -441,8 +445,12 @@ class ModLab(QMainWindow):
         path,_=QFileDialog.getSaveFileName(self,'Guardar proyecto','modlab-pack.json','Proyecto ModLab (*.json)')
         if not path:return
         try:
+            keep=('source','project_id','file_id','title','slug','description','logo',
+                  'screenshots','categories','role','reason','caveat','score',
+                  'version_number','minecraft','loader')
+            mods=[{key:mod[key] for key in keep if key in mod} for mod in self.pack.values()]
             value={'schema':1,'source':'curseforge','name':self.pack_name.text(),'minecraft':self.version.currentText(),
-                   'loader':self.loader.currentText(),'mods':list(self.pack.values()),'description':self.prompt.toPlainText()}
+                   'loader':self.loader.currentText(),'mods':mods,'description':self.prompt.toPlainText()}
             Path(path).write_text(json.dumps(value,ensure_ascii=False,indent=2))
             self.status.setText('Proyecto guardado: '+path)
         except OSError as exc:self.failure(str(exc))
@@ -452,11 +460,20 @@ class ModLab(QMainWindow):
         path,_=QFileDialog.getOpenFileName(self,'Abrir proyecto','','Proyecto ModLab (*.json)')
         if not path:return
         try:
-            value=json.loads(Path(path).read_text())
-            if value.get('schema')!=1 or value.get('source')!='curseforge' or not isinstance(value.get('mods'),list) or len(value['mods'])>1000:raise ValueError('Formato de proyecto no admitido.')
-            if value['loader'] not in ('Forge','Fabric','NeoForge') or not isinstance(value['minecraft'],str):raise ValueError('Versión o cargador no válido.')
+            project_file=Path(path)
+            if project_file.stat().st_size>5*1024*1024:
+                raise ValueError('El archivo supera el tamaño máximo de 5 MB.')
+            value=json.loads(project_file.read_text(encoding="utf-8"))
+            if not isinstance(value,dict) or value.get('schema')!=1 or value.get('source')!='curseforge' or not isinstance(value.get('mods'),list) or len(value['mods'])>1000:raise ValueError('Formato de proyecto no admitido.')
+            if value.get('loader') not in ('Forge','Fabric','NeoForge') or not isinstance(value.get('minecraft'),str) or not re.fullmatch(r"\d+\.\d+(?:\.\d+)?",value['minecraft']):raise ValueError('Versión o cargador no válido.')
+            ids=set()
             for m in value['mods']:
-                if m.get('source')!='curseforge' or type(m.get('project_id'))!=int or m['project_id']<=0 or not isinstance(m.get('title'),str):raise ValueError('El proyecto contiene mods no válidos.')
+                if not isinstance(m,dict) or m.get('source')!='curseforge' or type(m.get('project_id'))!=int or m['project_id']<=0 or not isinstance(m.get('title'),str) or len(m['title'])>200:
+                    raise ValueError('El proyecto contiene mods no válidos.')
+                if m['project_id'] in ids:raise ValueError('El proyecto contiene mods duplicados.')
+                ids.add(m['project_id'])
+                if 'file_id' in m and (type(m['file_id'])!=int or m['file_id']<=0):
+                    raise ValueError('El proyecto contiene IDs de archivo incorrectos.')
             self.version.setCurrentText(value['minecraft']);self.loader.setCurrentText(value['loader']);self.pack_name.setText(value.get('name','Mi pack'))
             self.pack={m['project_id']:m for m in value['mods']}
             # Mantiene los IDs elegidos; CurseForge los vuelve a verificar al exportar.
@@ -547,8 +564,9 @@ class ModLab(QMainWindow):
     def update_profile(self,_=None):
         p=self.pack_combo.currentData()
         if not p:
-            self.apply_btn.setEnabled(False);return
+            self.apply_btn.setEnabled(False);self.restore_btn.setEnabled(False);return
         self.apply_btn.setEnabled(True)
+        self.restore_btn.setEnabled(latest_graphics_backup(p) is not None)
         r=recommend(p["mods"],self.hw,self.mode.currentText())
         self.current_profile=r
         enabled="Sí (si existe Oculus)" if r["shaders"] else "No"
@@ -575,6 +593,27 @@ class ModLab(QMainWindow):
         QMessageBox.information(self,"Perfil aplicado",
             f"Ajustes guardados. Copia de seguridad en:\n{backup}\n\nReinicia Minecraft para utilizarlos.")
         self.status.setText(f"Copia de seguridad: {backup}")
+        self.update_profile()
+
+    def restore(self):
+        p=self.pack_combo.currentData()
+        if not p:return
+        source=latest_graphics_backup(p)
+        if source is None:
+            QMessageBox.information(self, "Sin copia", "No hay ninguna copia guardada para esta instancia.")
+            return
+        answer=QMessageBox.question(self, "Restaurar gráficos",
+            f"Se restaurarán los ajustes de {p['name']} desde:\n{source}\n\n"
+            "También se guardará una copia de los ajustes actuales. ¿Continuar?")
+        if answer!=QMessageBox.StandardButton.Yes:return
+        try:
+            restored,undo=restore_graphics(p)
+        except Exception as exc:
+            QMessageBox.warning(self,"No se pudo restaurar",str(exc));return
+        QMessageBox.information(self,"Ajustes restaurados",
+            f"Restaurado desde:\n{restored}\n\nCopia para deshacer:\n{undo}")
+        self.status.setText("Gráficos restaurados. Reinicia Minecraft para aplicar los cambios.")
+        self.update_profile()
 
 def main():
     if '--verify-ai' in sys.argv:

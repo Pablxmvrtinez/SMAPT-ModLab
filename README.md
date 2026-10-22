@@ -1,92 +1,145 @@
 # SMAPT ModLab
 
-**Crea y organiza modpacks de Minecraft desde una aplicación de escritorio.**
+**Crea y organiza modpacks de Minecraft desde tu escritorio.**
 
-ModLab permite elegir versiones y cargadores, buscar mods compatibles desde un catálogo configurado, revisar tu selección y exportar un paquete para importarlo en CurseForge. También incluye un sistema de recomendaciones con IA local.
+[![Pruebas](https://github.com/Pablxmvrtinez/SMAPT-ModLab/actions/workflows/tests.yml/badge.svg)](https://github.com/Pablxmvrtinez/SMAPT-ModLab/actions/workflows/tests.yml) ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-EAA33B)
 
-> **Estado del proyecto:** en desarrollo. La aplicación puede abrirse sin conexión al catálogo, pero la búsqueda de mods reales requiere configurar un acceso autorizado a CurseForge. Las sugerencias de IA y las comprobaciones no garantizan que una combinación de mods funcione al arrancar Minecraft.
+ModLab combina un explorador de mods, un editor de packs, un comprobador de dependencias y un diseñador de experiencias con IA local. Puedes elegir mods manualmente o explicar cómo quieres jugar y revisar las recomendaciones antes de añadirlas.
 
-## Qué puedes hacer
+> **Estado:** en desarrollo. La búsqueda real necesita una conexión autorizada con CurseForge. El constructor portátil y el motor de IA están implementados, pero todavía falta probar una distribución completa en Windows y Linux. No se incluyen claves privadas ni JAR de otros autores.
 
-- Elegir versión de Minecraft y cargador: Forge, Fabric o NeoForge.
-- Explorar un catálogo de mods por categorías y búsqueda, cuando la conexión está configurada.
-- Añadir y quitar mods de la selección y guardar o reabrir proyectos JSON.
-- Revisar dependencias obligatorias e incompatibilidades declaradas.
-- Exportar un ZIP con un `manifest.json` y referencias oficiales de CurseForge para su importación.
-- Detectar instancias y gestionar perfiles gráficos con copia de seguridad.
-- Solicitar recomendaciones mediante un modelo de IA que se ejecuta en el equipo.
+## Contenido
 
-## Cómo utilizar ModLab
+- [Funciones y estado](#funciones-y-estado)
+- [Cómo utilizar la aplicación](#cómo-utilizar-la-aplicación)
+- [Instalación desde el código](#instalación-desde-el-código)
+- [Conexión con CurseForge](#conexión-con-curseforge)
+- [Guardar y exportar packs](#guardar-y-exportar-packs)
+- [Optimizar y restaurar gráficos](#optimizar-y-restaurar-gráficos)
+- [Crear ejecutables](#crear-ejecutables)
+- [Solución de problemas](#solución-de-problemas)
 
-1. Abre la aplicación y selecciona tu **versión de Minecraft** y el **cargador**.
-2. En **Explorar mods**, busca los que quieres añadir. Si el catálogo no está configurado, esa búsqueda no estará disponible.
-3. Como alternativa, entra en **Crear con IA**, describe tu modpack y revisa las recomendaciones propuestas.
-4. Consulta **Mi modpack** para añadir o retirar elementos.
-5. Pulsa **Comprobar pack** para revisar la información de dependencias disponible.
-6. Usa **Exportar** para generar el ZIP e impórtalo desde CurseForge, en la opción de importar un modpack.
+## Funciones y estado
 
-El archivo exportado contiene referencias como `projectID` y `fileID`. CurseForge se encarga de descargar los JAR permitidos al importar el paquete; ModLab no incluye automáticamente todos los archivos de mods.
+| Función | Situación |
+| --- | --- |
+| Navegación, exploración visual y selección de mods | Implementada; la búsqueda requiere API |
+| Proyectos JSON, revisión de dependencias y exportación ZIP | Cubiertos por pruebas con respuestas simuladas |
+| IA local para interpretar peticiones y recomendar mods | Integrada; falta una prueba real de extremo a extremo con el modelo descargado |
+| Detección de instancias y ajustes gráficos con copias de seguridad | Implementados y probados |
+| Ejecutables portátiles | Constructor disponible; aún sin versión final validada |
 
-## Instalar y ejecutar desde el código
+**Importante:** un ZIP exportado por ModLab no contiene archivos JAR. Incluye identificadores oficiales para que CurseForge descargue los mods admitidos al importar el pack.
 
-El proyecto está desarrollado en Python y utiliza PySide6 para la interfaz. Para ejecutarlo desde su código fuente:
+## Cómo utilizar la aplicación
 
-1. Instala una versión de Python compatible con las dependencias del proyecto.
-2. Descarga o clona este repositorio y abre una terminal en su carpeta raíz.
-3. Crea y activa un entorno virtual (recomendado).
-4. Instala las dependencias y arranca:
+1. Elige la **versión de Minecraft** y el **cargador** (Forge, Fabric o NeoForge) en la parte superior.
+2. Abre **Explorar mods** para buscar por nombre o categoría, o **Crear con IA** para describir una experiencia de juego. Ambas funciones necesitan el catálogo; la segunda también necesita el modelo local.
+3. Revisa los resultados y añade los mods a **Mi modpack**.
+4. Guarda el proyecto en JSON cuando quieras retomarlo. Si cambias de versión o cargador, ModLab mantiene tus proyectos seleccionados y vuelve a comprobar los archivos compatibles.
+5. Utiliza **Comprobar pack** para revisar dependencias y conflictos declarados.
+6. Pulsa **Crear ZIP para CurseForge** e impórtalo desde el lanzador de CurseForge, en Minecraft > Importar.
 
-```bash
-python -m pip install -r requirements.txt
-python scripts/fetch_model.py
-python app.py
-```
+Las advertencias se basan en metadatos oficiales. **No garantizan que Minecraft arranque** con cualquier combinación: siempre conviene probar el modpack antes de compartirlo.
 
-`fetch_model.py` descarga la revisión prevista del modelo de IA y verifica su SHA-256. Necesitarás espacio de almacenamiento suficiente: el modelo `Qwen3-4B-Instruct-2507` en GGUF Q4_K_M ocupa aproximadamente 2,5 GB, además de memoria durante su uso. La integración local utiliza `llama-cpp-python`, sin necesidad de Ollama.
+## Instalación desde el código
 
-## Cómo funciona la conexión con CurseForge
+Necesitas **Python 3.12** (recomendado), Internet para instalar dependencias y unos 2,5 GB de almacenamiento para el modelo GGUF, además de RAM libre para ejecutarlo.
 
-El catálogo utiliza la API de CurseForge y **no incluye una clave privada en el repositorio ni en una descarga pública**.
+Descarga el repositorio y abre una terminal en su carpeta principal.
 
-Para desarrollo personal, puede configurarse una clave autorizada mediante `CURSEFORGE_API_KEY` o desde **Conexión del catálogo**. Sin esta configuración, la aplicación abre, pero no podrá obtener resultados reales del catálogo.
+**Linux:**
 
-Una clave personal **no debe distribuirse con el programa** para que todo el mundo la reutilice. Las [condiciones de la API para terceros](https://support.curseforge.com/support/solutions/articles/9000207405-curseforge-3rd-party-api-terms-and-conditions) también restringen el acceso mediante proxies. Para ofrecer una descarga con búsqueda lista para cualquier usuario, primero hace falta una integración autorizada por CurseForge.
+~~~bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python scripts/fetch_model.py
+.venv/bin/python app.py
+~~~
 
-El archivo `catalog_server.py` es una herramienta experimental de integración, **no un servicio público desplegado ni autorizado**.
+**Windows (PowerShell):**
 
-## Generar una versión portátil
+~~~powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe scripts\fetch_model.py
+.\.venv\Scripts\python.exe app.py
+~~~
 
-Si quieres crear un paquete para ejecutar ModLab sin abrir directamente el código:
+`fetch_model.py` descarga una revisión fijada del modelo, comprueba el tamaño y verifica SHA-256. La IA utiliza `llama-cpp-python` con `Qwen3-4B-Instruct-2507`, sin requerir Ollama ni una suscripción externa.
 
-```bash
+Para probar solo el arranque de la interfaz, sin ejecutar el modelo:
+
+~~~bash
+python app.py --smoke
+~~~
+
+## Conexión con CurseForge
+
+La aplicación se puede abrir sin una clave, pero **no podrá consultar mods reales ni verificar archivos para exportar** hasta conectar el catálogo. Para tus pruebas de desarrollo:
+
+1. Solicita una clave conforme a las [instrucciones de CurseForge](https://support.curseforge.com/support/solutions/articles/9000208346-about-the-curseforge-api-and-how-to-apply-for-a-key).
+2. Configura la variable de entorno `CURSEFORGE_API_KEY` o utiliza el cuadro **Conexión del catálogo** de la aplicación.
+3. Comprueba que aparecen las categorías y que una búsqueda devuelve resultados.
+
+Ejemplo para una sesión local de Linux:
+
+~~~bash
+export CURSEFORGE_API_KEY="TU_CLAVE_PERSONAL"
+.venv/bin/python app.py
+~~~
+
+**Nunca publiques la clave en GitHub ni dentro del ejecutable.** Las [condiciones de CurseForge](https://support.curseforge.com/support/solutions/articles/9000207405-curseforge-3rd-party-api-terms-and-conditions) restringen compartir claves y utilizar proxies. La herramienta `catalog_server.py` es experimental, no una pasarela pública aprobada. Una distribución lista para todos necesita un método autorizado por CurseForge.
+
+## Guardar y exportar packs
+
+**Guardar proyecto** genera un archivo JSON con tu selección y sus datos esenciales. Puedes recuperarlo con **Abrir proyecto**. Los archivos JSON de procedencia desconocida se validan antes de cargarlos.
+
+**Comprobar pack** consulta CurseForge para verificar archivos compatibles y dependencias obligatorias; si encuentra una incompatibilidad declarada, se detiene y explica el problema. **Crear ZIP** hace la comprobación de nuevo y exporta un manifiesto con `projectID` y `fileID`, más información del pack.
+
+Después abre el lanzador CurseForge e importa ese ZIP. CurseForge se encarga de descargar los JAR permitidos. Algunos proyectos no ofrecen una versión estable para todas las combinaciones de Minecraft y cargador; ModLab no inventa versiones que no existen.
+
+## Optimizar y restaurar gráficos
+
+En **Mi equipo** podrás consultar tu hardware e instancias detectadas de CurseForge o Prism. En **Optimizar** selecciona una instancia y elige una prioridad: equilibrado, máximos FPS o calidad visual.
+
+Al pulsar **Aplicar gráficos con copia de seguridad**, ModLab ajusta distancia de renderizado, simulación, FPS y opciones gráficas compatibles después de pedir confirmación. Antes de cambiar nada, guarda el estado anterior en la carpeta `.smapt-backups/` de la instancia.
+
+**Restaurar última copia de gráficos** recupera los ajustes guardados. Antes de hacerlo genera otra copia del estado actual, por si quieres deshacer esa restauración. **Cierra Minecraft antes de aplicar o restaurar cambios.** La memoria RAM asignada a Java se cambia desde el lanzador, no desde ModLab.
+
+## Crear ejecutables
+
+Con las dependencias instaladas y el modelo ya descargado:
+
+~~~bash
 python -m pip install "pyinstaller>=6.16,<7"
 python build_portable.py
-```
+~~~
 
-El resultado aparece en `dist/`. Distribuye **toda la carpeta generada**, incluido `_internal`. Linux y Windows requieren compilaciones independientes. La compilación hecha en CachyOS utiliza glibc 2.44 y puede no funcionar en distribuciones más antiguas; en ese caso habrá que recompilar en un entorno compatible.
+El paquete se genera en `dist/`. **No copies solamente el EXE o el binario:** conserva toda la carpeta, incluida `_internal`. Windows y Linux se compilan por separado. En Linux puede ser necesario compilar desde una distribución con bibliotecas compatibles con los equipos de destino.
 
-El repositorio también incluye el flujo manual de GitHub Actions `.github/workflows/portable.yml`.
+Hay un [workflow de empaquetado manual](.github/workflows/portable.yml), pero todavía no está confirmado un lanzamiento final probado en ambos sistemas.
 
-## Cómo comprobar que funciona
+## Solución de problemas
 
-Puedes ejecutar las pruebas automatizadas:
+**«El catálogo no está conectado».** Verifica el acceso autorizado a CurseForge y tu conexión. No se utiliza un catálogo alternativo oculto.
 
-```bash
-python -m unittest discover -s tests -v
-QT_QPA_PLATFORM=offscreen python app.py --smoke
-python scripts/evaluate_ai.py
-```
+**«Esta instalación no incluye la IA».** Descarga el modelo con `scripts/fetch_model.py` y revisa las dependencias y la memoria RAM disponible.
 
-Las pruebas emplean respuestas simuladas de CurseForge. **Superarlas no confirma que la conexión real con la API funcione**, ni que todos los modpacks exportados sean compatibles.
+**«No hay archivo estable compatible».** Elige otra versión de Minecraft, otro cargador o sustituye ese mod.
 
-## Archivos principales
+**«Mi instancia no aparece».** Comprueba que tiene una carpeta reconocida por el lanzador. Las rutas de instalación personalizadas pueden requerir detección adicional.
 
-- `app.py` y `visual_widgets.py`: interfaz y componentes visuales.
-- `curseforge.py`: integración con el catálogo.
-- `catalog_server.py`: herramienta experimental de conexión.
-- `local_ai.py` e `intelligence.py`: recomendaciones locales.
-- `modpack.py`: selección, validaciones y exportación.
-- `core.py`: detección de equipo e instancias.
-- `build_portable.py` y `scripts/`: empaquetado y pruebas.
+**«El pack se importa, pero el juego falla».** La comprobación de metadatos no detecta todos los conflictos. Prueba los mods en una instancia separada y revisa los logs de Minecraft.
 
-Las licencias de las dependencias y del modelo se encuentran en [THIRD_PARTY.md](THIRD_PARTY.md).
+Para ejecutar las pruebas sin mostrar la ventana:
+
+~~~bash
+QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
+~~~
+
+En Windows utiliza `python -m unittest discover -s tests -v` sin el prefijo de Linux. Estas pruebas emplean respuestas simuladas, no tu clave real. GitHub también ejecuta [pruebas automáticas](.github/workflows/tests.yml) al subir cambios.
+
+## Licencias y agradecimientos
+
+ModLab utiliza Python, PySide6, Requests, psutil, `llama-cpp-python` y el modelo Qwen3-4B-Instruct-2507 (GGUF). Las condiciones y enlaces de las dependencias se detallan en [THIRD_PARTY.md](THIRD_PARTY.md).

@@ -1,14 +1,19 @@
 """Motor local de S.M.A.P.T. ModLab: solo modifica ajustes tras confirmación."""
 from pathlib import Path
 from datetime import datetime
-import json, math, shutil, subprocess
+import json, math, os, platform, shutil, subprocess
 import psutil
 
 HOME = Path.home()
 ROOT = Path(__file__).resolve().parent
+# La ubicación de las instancias depende del lanzador y del sistema operativo.
+APPDATA = Path(os.environ.get("APPDATA", str(HOME / "AppData/Roaming")))
 INSTANCES = [
     ("CurseForge", HOME / "Documents/curseforge/minecraft/Instances"),
+    ("CurseForge", HOME / "curseforge/minecraft/Instances"),
     ("Prism", HOME / ".var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances"),
+    ("Prism", HOME / ".local/share/PrismLauncher/instances"),
+    ("Prism", APPDATA / "PrismLauncher/instances"),
 ]
 
 def read_json(path):
@@ -41,10 +46,12 @@ def hardware():
     return {"cpu":cpu, "threads":psutil.cpu_count() or 1,
             "ram_gb":round(vm.total/1024**3,1),
             "ram_available_gb":round(vm.available/1024**3,1),
-            "gpu":gpu, "vram_gb":round(vram/1024,1)}
+            "gpu":gpu, "vram_gb":round(vram/1024,1),
+            "system":f"{platform.system()} {platform.release()}"}
 
 def instances():
     result = []
+    seen = set()
     for launcher, base in INSTANCES:
         if not base.is_dir():
             continue
@@ -52,6 +59,10 @@ def instances():
             if not folder.is_dir():
                 continue
             work = folder/".minecraft" if (folder/".minecraft").is_dir() else folder
+            identity = str(work.resolve())
+            if identity in seen:
+                continue
+            seen.add(identity)
             manifest = read_json(folder/"manifest.json")
             meta = read_json(folder/"minecraftinstance.json")
             count = len(list((work/"mods").glob("*.jar")))
@@ -123,6 +134,40 @@ def apply_graphics(inst, settings):
         if not seen:out.append("enableShaders="+str(settings["shaders"]).lower())
         shader.write_text("\n".join(out)+"\n")
     return str(backup)
+
+def latest_graphics_backup(inst):
+    """Devuelve la última copia utilizable sin modificar los archivos del juego."""
+    base = Path(inst["path"]) / ".smapt-backups"
+    if not base.is_dir():
+        return None
+    copies = [p for p in base.iterdir()
+              if p.is_dir() and not p.is_symlink() and (p / "options.txt").is_file()]
+    return max(copies, key=lambda p: p.name, default=None)
+
+
+def restore_graphics(inst):
+    """Restaura los ajustes anteriores y guarda primero una copia del estado actual."""
+    folder = Path(inst["path"])
+    source = latest_graphics_backup(inst)
+    if source is None:
+        raise ValueError("Esta instancia todavía no tiene copias de seguridad de ModLab.")
+    if is_running(folder):
+        raise RuntimeError("Cierra Minecraft antes de restaurar sus gráficos.")
+    options = folder / "options.txt"
+    if not options.is_file():
+        raise ValueError("No se encuentra options.txt en esta instancia.")
+    original = folder / "config/oculus.properties"
+    backup = folder / ".smapt-backups" / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    backup.mkdir(parents=True, exist_ok=False)
+    shutil.copy2(options, backup / "options.txt")
+    if original.is_file():
+        shutil.copy2(original, backup / "oculus.properties")
+    shutil.copy2(source / "options.txt", options)
+    if (source / "oculus.properties").is_file():
+        original.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source / "oculus.properties", original)
+    return str(source), str(backup)
+
 
 def save_plan(phrase,version,loader,mods,profile,hw,experience=None,destination=None):
     if destination:
