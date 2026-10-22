@@ -30,15 +30,15 @@ El programa no comprueba que Minecraft vaya a arrancar con todas las combinacion
 
 ## Catálogo de CurseForge
 
-**Todavía falta configurar una clave de desarrollo o una pasarela.** Sin esa conexión la aplicación abre, pero no puede buscar mods reales.
+ModLab está diseñado para explorar mods de Minecraft desde la propia aplicación: buscar por nombre, filtrar resultados y seleccionar los archivos adecuados para la versión y el cargador elegidos.
 
-La clave para desarrollo se puede pasar mediante `CURSEFORGE_API_KEY` o desde **Conexión del catálogo**. No se guarda dentro de los proyectos. Para compartir la aplicación sin entregar la clave, está `catalog_server.py`: consulta CurseForge desde un servidor propio y devuelve los resultados a ModLab.
+**Estado actual:** la búsqueda real necesita acceso a la API oficial de CurseForge. La aplicación puede iniciarse sin ese acceso, pero el catálogo no estará disponible hasta configurarlo. No se incluye ninguna clave privada en las descargas.
 
-1. Solicita una [clave de la API de CurseForge](https://support.curseforge.com/support/solutions/articles/9000208346-about-the-curseforge-api-and-how-to-apply-for-a-key).
-2. Configura `CURSEFORGE_API_KEY` en el servidor y publica la pasarela mediante HTTPS. Por defecto, la pasarela escucha en `127.0.0.1:8765`; `SMAPT_BIND` y `PORT` permiten cambiarlo.
-3. Al crear el paquete, indica `SMAPT_CATALOG_URL=https://tu-servidor.example`. La URL se guarda en `app-config.json`; la clave no debe incluirse en el cliente.
+La clave de API identifica al desarrollador autorizado; no es una contraseña que deba copiarse en una descarga pública. Para pruebas personales puede configurarse mediante la variable `CURSEFORGE_API_KEY` o la pantalla **Conexión del catálogo**.
 
-La pasarela admite únicamente las rutas necesarias de CurseForge para Minecraft, limita parámetros y peticiones por IP y no almacena respuestas en caché. No permite usar otras API como sustituto. Antes de publicarla para terceros hay que comprobar las condiciones y autorizaciones de CurseForge para ese uso.
+Para distribuir ModLab con un catálogo que funcione sin pedir credenciales a cada usuario, antes es necesario acordar con CurseForge un mecanismo autorizado. Sus [condiciones para desarrolladores externos](https://support.curseforge.com/support/solutions/articles/9000207405-curseforge-3rd-party-api-terms-and-conditions) prohíben compartir la clave y restringen el uso de proxies. El proyecto incluye `catalog_server.py` como herramienta técnica experimental, **no como una pasarela pública ya aprobada ni desplegada**.
+
+Los modpacks exportados incluyen referencias oficiales a los archivos, para que CurseForge gestione la importación y las descargas. La disponibilidad de cada mod también depende de los permisos definidos por su autor.
 
 ## Recomendaciones locales
 
