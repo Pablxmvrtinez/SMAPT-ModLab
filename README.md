@@ -16,6 +16,8 @@ El catálogo y los manifiestos usan exclusivamente CurseForge.
   irrelevante para alcanzar un número. Se pueden combinar recomendaciones con
   todos los mods que se añadan manualmente desde la biblioteca.
 - Pack que conserva su selección al navegar, evita duplicados y guarda/abre proyectos.
+- Comprobación previa del modpack sin modificar la selección: revisa versiones,
+  dependencias obligatorias e incompatibilidades declaradas por CurseForge.
 - Exportación nativa: `manifest.json` con `projectID` y `fileID` oficiales. CurseForge
   descarga los archivos al importar el ZIP; no se redistribuyen JAR dentro de la app.
 - Detección de hardware e instancias y optimizador gráfico con copia de seguridad.
@@ -61,7 +63,8 @@ por Modrinth ni scraping de la web para evitar la autenticación.
    limitaciones del equipo. No necesitas escoger categorías. Revisa la explicación
    y añade lo que encaje al pack.
 3. En **Explorar mods**, navega por tarjetas, temas o búsquedas y añade más opciones.
-4. En **Mi modpack**, revisa la selección y pulsa **Crear ZIP para CurseForge**.
+4. En **Mi modpack**, pulsa **Comprobar pack** para consultar dependencias y
+   conflictos declarados, y después **Crear ZIP para CurseForge**.
 5. En CurseForge: Minecraft → Importar → selecciona el ZIP.
 
 Minecraft y cargador son ajustes técnicos compartidos por ambos modos. Si cambian,

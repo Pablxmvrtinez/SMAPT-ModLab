@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
 from curseforge import CurseForgeClient,Connection,CatalogError,connection_from_environment
 from intelligence import ExperienceDesigner,plan_text
 from local_ai import LocalAI
-from modpack import build_pack,resolve_loader_version
+from modpack import build_pack,resolve_loader_version,audit_pack
 from core import hardware,instances,recommend,apply_graphics,save_plan
 from visual_widgets import Images,Artwork,CardGrid,Cover,LABELS
 
@@ -214,6 +214,7 @@ class ModLab(QMainWindow):
         row=QHBoxLayout();button=QPushButton('Quitar seleccionado');button.clicked.connect(self.remove_selected);row.addWidget(button)
         button=QPushButton('Guardar proyecto');button.clicked.connect(self.save_project);row.addWidget(button)
         button=QPushButton('Abrir proyecto');button.clicked.connect(self.open_project);row.addWidget(button);row.addStretch()
+        self.audit_button=QPushButton('Comprobar pack');self.audit_button.clicked.connect(self.check_pack);row.addWidget(self.audit_button)
         self.export_button=QPushButton('Crear ZIP para CurseForge  →');self.export_button.setObjectName('primary');self.export_button.clicked.connect(self.export_pack);row.addWidget(self.export_button);v.addLayout(row)
         v.addWidget(QLabel('El ZIP usa IDs oficiales. CurseForge descarga los mods y crea el perfil al importarlo.'))
         return page
@@ -407,7 +408,7 @@ class ModLab(QMainWindow):
             item=QListWidgetItem(mod['title']+'\n'+(mod.get('role') or ', '.join(c['name'] for c in mod.get('categories',[])[:2]))+' · '+(mod.get('version_number') or 'Verificación pendiente'))
             item.setData(Qt.ItemDataRole.UserRole,pid);self.pack_list.addItem(item)
         self.pack_summary.setText(f'{len(self.pack)} mods elegidos · {self.version.currentText()} / {self.loader.currentText()} · dependencias completas al exportar.')
-        self.browse_grid.update_pack(self.pack);self.ai_grid.update_pack(self.pack);self.export_button.setEnabled(bool(self.pack) and not self.busy)
+        self.browse_grid.update_pack(self.pack);self.ai_grid.update_pack(self.pack);self.export_button.setEnabled(bool(self.pack) and not self.busy);self.audit_button.setEnabled(bool(self.pack) and not self.busy)
 
     def remove_selected(self):
         if self.busy:return
@@ -462,6 +463,28 @@ class ModLab(QMainWindow):
             self.prompt.setPlainText(value.get('description',''));self.refresh_pack();self.status.setText('Proyecto abierto. Los archivos se verificarán contra CurseForge al exportar.')
         except (OSError,ValueError,KeyError,TypeError,AttributeError) as exc:self.failure('No se pudo abrir el proyecto: '+str(exc))
 
+    def check_pack(self):
+        if self.busy or not self.pack:return
+        mods=list(self.pack.values());mc=self.version.currentText().strip();loader=self.loader.currentText()
+        def ready(result):
+            added=result['dependencies']
+            lines=[
+                f"{result['selected']} mods elegidos + {len(added)} dependencias obligatorias.",
+                f"Total previsto: {result['total']} mods para Minecraft {mc} / {loader}.",
+                "",
+            ]
+            if added:
+                lines.append('Se incorporarán automáticamente al exportar:')
+                lines.extend('• '+m['title']+' ('+str(m['project_id'])+')' for m in added[:40])
+                if len(added)>40:lines.append(f'… y {len(added)-40} dependencias más.')
+            else:
+                lines.append('No hay dependencias obligatorias adicionales.')
+            lines.extend(['','Sin incompatibilidades declaradas en los archivos comprobados.',
+                          'Esto no garantiza que Minecraft arranque ni que no haya conflictos sin declarar.'])
+            QMessageBox.information(self,'Comprobación del modpack','\n'.join(lines))
+            self.status.setText(f"Comprobación completada: {result['total']} mods, {len(added)} dependencias nuevas.")
+        self.run_task(lambda progress:audit_pack(mods,mc,loader,progress,self.catalog),ready)
+
     def export_pack(self):
         if self.busy or not self.pack:return
         path,_=QFileDialog.getSaveFileName(self,'Exportar a CurseForge',self.pack_name.text()+'.zip','Modpack CurseForge (*.zip)')
@@ -480,7 +503,7 @@ class ModLab(QMainWindow):
         if self.busy:return
         self.busy=True;self.cancel.clear();worker=TaskThread(task,self.cancel);self.tasks.append(worker)
         self.progress.show();self.cancel_button.show();self.version.setEnabled(False);self.loader.setEnabled(False)
-        self.ai_start.setEnabled(False);self.export_button.setEnabled(False);self.refresh.setEnabled(False)
+        self.ai_start.setEnabled(False);self.export_button.setEnabled(False);self.audit_button.setEnabled(False);self.refresh.setEnabled(False)
         for widget in (self.prompt,self.max_mods,self.search,self.category,self.sort,self.prev,self.next):widget.setEnabled(False)
         def deliver(result):
             try:ready(result)
@@ -494,7 +517,7 @@ class ModLab(QMainWindow):
         def finished():
             self.tasks.remove(worker);self.busy=False
             self.progress.hide();self.cancel_button.hide();self.version.setEnabled(True);self.loader.setEnabled(True)
-            self.ai_start.setEnabled(True);self.refresh.setEnabled(True);self.export_button.setEnabled(bool(self.pack))
+            self.ai_start.setEnabled(True);self.refresh.setEnabled(True);self.export_button.setEnabled(bool(self.pack));self.audit_button.setEnabled(bool(self.pack))
             for widget in (self.prompt,self.max_mods,self.search,self.category,self.sort):widget.setEnabled(True)
             self.prev.setEnabled(self.index>0);self.next.setEnabled(self.index+50<min(10000,self.total))
             if self.cancel.is_set():self.status.setText('Operación cancelada. Tu pack se conserva.')

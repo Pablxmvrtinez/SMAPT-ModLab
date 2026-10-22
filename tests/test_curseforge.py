@@ -79,6 +79,14 @@ class ClientTests(unittest.TestCase):
             file=file(m['project_id'],deps=[{'modId':20,'relationType':5}] if m['project_id']==10 else [])))
         with self.assertRaisesRegex(CatalogError,'Incompatibilidad'):
             self.client.resolve([normalize(raw_mod(10)),normalize(raw_mod(20))],'1.20.1','Forge')
+    def test_incompatibility_names_both_mods(self):
+        self.client.pin=Mock(side_effect=lambda m,mc,l:dict(m,file_id=m['project_id']*100,
+            file=file(m['project_id'],deps=[{'modId':20,'relationType':5}] if m['project_id']==10 else [])))
+        with self.assertRaises(CatalogError) as error:
+            self.client.resolve([normalize(raw_mod(10)),normalize(raw_mod(20))],'1.20.1','Forge')
+        self.assertIn('Mod 10',str(error.exception))
+        self.assertIn('Mod 20',str(error.exception))
+
     def test_no_other_catalog_can_be_pinned(self):
         with self.assertRaisesRegex(CatalogError,'Solo se admiten'):
             self.client.pin({'source':'modrinth','project_id':10},'1.20.1','Forge')

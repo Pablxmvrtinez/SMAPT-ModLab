@@ -160,5 +160,5 @@ class CurseForgeClient:
         for item in resolved.values():
             for dep in item['file'].get('dependencies',[]):
                 if dep['relationType']==5 and int(dep['modId']) in resolved:
-                    raise CatalogError('Incompatibilidad declarada por '+item['title'])
+                    raise CatalogError('Incompatibilidad declarada: '+item['title']+' ↔ '+resolved[int(dep['modId'])]['title'])
         return list(resolved.values())

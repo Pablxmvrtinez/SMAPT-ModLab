@@ -81,3 +81,15 @@ class DesignUITests(unittest.TestCase):
         self.assertEqual(self.window.pack[1]['file_id'],12345)
         self.window.version.setCurrentText('1.21.1')
         self.assertNotIn('file_id',self.window.pack[1])
+
+    def test_check_pack_preserves_selection_and_reports_dependencies(self):
+        self.window.add_mod(self.mods[0]);self.wait()
+        with patch('app.audit_pack',return_value={
+            'selected':1,'total':2,
+            'dependencies':[{'project_id':2,'title':'Biblioteca','version':'1.0'}],
+        }) as audit, patch('app.QMessageBox.information') as info:
+            self.window.check_pack();self.wait()
+        audit.assert_called_once()
+        self.assertEqual(len(self.window.pack),1)
+        self.assertIn('Biblioteca',info.call_args.args[2])
+        self.assertTrue(self.window.audit_button.isEnabled())

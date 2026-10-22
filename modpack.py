@@ -41,6 +41,28 @@ def build_pack(destination,name,minecraft,loader,loader_version,mods,progress=la
     return {'path':str(destination),'mods':len(resolved)}
 
 
+def audit_pack(mods, minecraft, loader, progress=lambda _: None, client=None):
+    """Verifica el pack completo con CurseForge, sin exportar ni cambiar la selección."""
+    if not mods:
+        raise ValueError('Añade mods antes de comprobar el pack.')
+    client = client or CurseForgeClient()
+    resolved = client.resolve(mods, minecraft, loader, progress)
+    selected_ids = {int(m['project_id']) for m in mods}
+    added = sorted(
+        (m for m in resolved if int(m['project_id']) not in selected_ids),
+        key=lambda m: m['title'].casefold(),
+    )
+    return {
+        'selected': len(selected_ids),
+        'total': len(resolved),
+        'dependencies': [
+            {'project_id': m['project_id'], 'title': m['title'],
+             'version': m.get('version_number', '')}
+            for m in added
+        ],
+    }
+
+
 def resolve_loader_version(minecraft, loader):
     """Consulta metadatos oficiales; no inventa versiones para el manifest."""
     import xml.etree.ElementTree as ET

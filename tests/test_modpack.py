@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock,patch
 from zipfile import ZipFile
-from modpack import build_pack,resolve_loader_version
+from modpack import build_pack,resolve_loader_version,audit_pack
 from test_curseforge import raw_mod
 from curseforge import normalize
 
@@ -46,3 +46,24 @@ class PackTests(unittest.TestCase):
         response=Mock();response.json.return_value={'promos':{}}
         with patch('modpack.requests.get',return_value=response):
             with self.assertRaises(ValueError):resolve_loader_version('1.99','Forge')
+
+
+class AuditTests(unittest.TestCase):
+    def test_preview_adds_only_required_dependencies(self):
+        from unittest.mock import Mock
+        client=Mock()
+        selected={'project_id':10,'title':'A'}
+        client.resolve.return_value=[
+            dict(selected,file_id=100),
+            {'project_id':30,'title':'Z library','file_id':300,'version_number':'3.0'},
+            {'project_id':20,'title':'B library','file_id':200,'version_number':'2.0'},
+        ]
+        result=audit_pack([selected],'1.20.1','Forge',client=client)
+        self.assertEqual(result['selected'],1)
+        self.assertEqual(result['total'],3)
+        self.assertEqual([m['project_id'] for m in result['dependencies']],[20,30])
+        client.resolve.assert_called_once()
+
+    def test_empty_pack_is_not_checked(self):
+        with self.assertRaisesRegex(ValueError,'Añade mods'):
+            audit_pack([],'1.20.1','Fabric',client=None)
