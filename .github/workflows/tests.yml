@@ -19,6 +19,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      - name: Instalar bibliotecas de Qt para Linux
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libopengl0 libxkbcommon-x11-0
       - name: Instalar dependencias para las pruebas
         run: |
           python -m pip install --upgrade pip
