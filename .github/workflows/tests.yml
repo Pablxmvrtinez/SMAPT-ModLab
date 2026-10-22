@@ -11,7 +11,11 @@ permissions:
 
 jobs:
   tests:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +24,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Instalar bibliotecas de Qt para Linux
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libegl1 libopengl0 libxkbcommon-x11-0
