@@ -1,101 +1,50 @@
-# S.M.A.P.T. ModLab · Acheron
+# SMAPT ModLab
 
-Aplicación de escritorio con dos modos: **Crear con IA** y **Explorar mods**.
-El catálogo y los manifiestos usan exclusivamente CurseForge.
+Aplicación de escritorio para montar modpacks de Minecraft. Permite buscar mods en CurseForge, guardarlos en un proyecto y preparar un ZIP para importarlo en el lanzador. También tiene un modo de recomendaciones con un modelo de lenguaje que se ejecuta en el propio equipo.
 
-## Qué incluye
+## Funciones
 
-- Inicio visual con paisaje isométrico original y 24 accesos temáticos.
-- Biblioteca de tarjetas con imágenes/logos de CurseForge, etiquetas, descargas,
-  descripción, ficha y botón para añadir al pack.
-- Paginación de 50 mods, orden por descargas/popularidad/actualización y todas las
-  categorías que devuelva la API oficial. No está limitada a una lista prefijada.
-- IA local integrada que interpreta una descripción completa, obtiene alternativas
-  del catálogo y explica aportación, función y límites de cada recomendación.
-- Hasta 400 mods elegidos como techo configurable; no se rellena con contenido
-  irrelevante para alcanzar un número. Se pueden combinar recomendaciones con
-  todos los mods que se añadan manualmente desde la biblioteca.
-- Pack que conserva su selección al navegar, evita duplicados y guarda/abre proyectos.
-- Comprobación previa del modpack sin modificar la selección: revisa versiones,
-  dependencias obligatorias e incompatibilidades declaradas por CurseForge.
-- Exportación nativa: `manifest.json` con `projectID` y `fileID` oficiales. CurseForge
-  descarga los archivos al importar el ZIP; no se redistribuyen JAR dentro de la app.
-- Detección de hardware e instancias y optimizador gráfico con copia de seguridad.
+- Navegar por el catálogo de CurseForge, con categorías, búsqueda y páginas de 50 resultados.
+- Elegir la versión de Minecraft y el cargador (Forge, Fabric o NeoForge).
+- Añadir o quitar mods sin perder la selección al cambiar de pantalla.
+- Guardar y abrir proyectos JSON.
+- Revisar dependencias obligatorias e incompatibilidades declaradas antes de exportar.
+- Generar un ZIP con `manifest.json`, referencias oficiales `projectID` y `fileID`, y una lista de mods. CurseForge descarga los JAR al importar el pack.
+- Consultar las instancias detectadas y crear perfiles gráficos con copia de seguridad.
 
-## Conexión con CurseForge: requisito pendiente del desarrollador
+El programa no comprueba que Minecraft vaya a arrancar con todas las combinaciones. Los conflictos no declarados y el rendimiento real hay que probarlos en el juego.
 
-**La API oficial exige una clave de desarrollador. Este repositorio no incluye una
-clave y no muestra resultados ficticios cuando el catálogo no está conectado.**
+## Catálogo de CurseForge
 
-[Solicita una clave para SMAPT ModLab](https://support.curseforge.com/support/solutions/articles/9000208346-about-the-curseforge-api-and-how-to-apply-for-a-key).
+**Todavía falta configurar una clave de desarrollo o una pasarela.** Sin esa conexión la aplicación abre, pero no puede buscar mods reales.
 
-Para pruebas propias, establece `CURSEFORGE_API_KEY` en tu entorno o introduce la
-clave en **Conexión del catálogo**. La clave de prueba permanece en memoria y no
-se guarda en el proyecto ni se incluye en el paquete.
+La clave para desarrollo se puede pasar mediante `CURSEFORGE_API_KEY` o desde **Conexión del catálogo**. No se guarda dentro de los proyectos. Para compartir la aplicación sin entregar la clave, está `catalog_server.py`: consulta CurseForge desde un servidor propio y devuelve los resultados a ModLab.
 
-Para compartir la aplicación con amigos sin pedirles claves:
+1. Solicita una [clave de la API de CurseForge](https://support.curseforge.com/support/solutions/articles/9000208346-about-the-curseforge-api-and-how-to-apply-for-a-key).
+2. Configura `CURSEFORGE_API_KEY` en el servidor y publica la pasarela mediante HTTPS. Por defecto, la pasarela escucha en `127.0.0.1:8765`; `SMAPT_BIND` y `PORT` permiten cambiarlo.
+3. Al crear el paquete, indica `SMAPT_CATALOG_URL=https://tu-servidor.example`. La URL se guarda en `app-config.json`; la clave no debe incluirse en el cliente.
 
-1. Ejecuta `catalog_server.py` en un servidor del desarrollador con
-   `CURSEFORGE_API_KEY` configurada como secreto. La clave nunca va con el cliente.
-2. Publica esa pasarela detrás de HTTPS. Por defecto escucha en localhost:8765;
-   `SMAPT_BIND` y `PORT` permiten ajustar la escucha. El proceso de publicación no
-   se ejecuta automáticamente desde este proyecto.
-3. Construye la aplicación con `SMAPT_CATALOG_URL=https://tu-pasarela.example`.
-   Solo esa URL pública queda en `app-config.json` dentro del paquete.
+La pasarela admite únicamente las rutas necesarias de CurseForge para Minecraft, limita parámetros y peticiones por IP y no almacena respuestas en caché. No permite usar otras API como sustituto. Antes de publicarla para terceros hay que comprobar las condiciones y autorizaciones de CurseForge para ese uso.
 
-La pasarela solo admite rutas GET de catálogo, fija Minecraft (432) y Mods (6),
-limita parámetros y consultas por IP, sin caché de respuestas. No expone la clave ni el
-cuerpo privado de errores del proveedor. No es un servicio de inferencia de IA.
-La configuración de CurseForge corresponde al desarrollador, no a cada amigo.
+## Recomendaciones locales
 
-Antes de publicar la pasarela, solicita a CurseForge la aprobación de la arquitectura
-y del uso de metadatos en proyectos y manifiestos. La solicitud de API está pendiente;
-el código preparado no implica que CurseForge haya autorizado su funcionamiento.
+El paquete completo utiliza `llama-cpp-python` y el modelo `Qwen3-4B-Instruct-2507` en formato GGUF Q4_K_M. No hace falta instalar Ollama ni contratar otro servicio de IA. El modelo ocupa unos 2,5 GB y necesita varios GB de memoria cuando está funcionando.
 
-Sin clave/pasarela es posible abrir y revisar la interfaz, pero las búsquedas y la
-curación sobre datos reales siguen pendientes de esa conexión. No hay sustitución
-por Modrinth ni scraping de la web para evitar la autenticación.
+La IA interpreta lo que escribes y propone mods del catálogo que puedan encajar. Sus razones son orientativas: una recomendación no equivale a una prueba de compatibilidad.
 
 ## Uso
 
-1. Abre el ejecutable del paquete completo.
-2. En **Crear con IA**, describe cómo quieres jugar, lo que quieres evitar y las
-   limitaciones del equipo. No necesitas escoger categorías. Revisa la explicación
-   y añade lo que encaje al pack.
-3. En **Explorar mods**, navega por tarjetas, temas o búsquedas y añade más opciones.
-4. En **Mi modpack**, pulsa **Comprobar pack** para consultar dependencias y
-   conflictos declarados, y después **Crear ZIP para CurseForge**.
-5. En CurseForge: Minecraft → Importar → selecciona el ZIP.
+1. Abre ModLab y selecciona versión de Minecraft y cargador.
+2. Busca mods en **Explorar mods** o introduce lo que quieres en **Crear con IA**.
+3. Revisa y modifica la selección en **Mi modpack**.
+4. Pulsa **Comprobar pack** y revisa las dependencias.
+5. Exporta el ZIP e impórtalo en CurseForge desde Minecraft → Importar.
 
-Minecraft y cargador son ajustes técnicos compartidos por ambos modos. Si cambian,
-la selección se conserva y los archivos se verifican de nuevo. Al exportar se
-resuelven las dependencias obligatorias y se rechazan incompatibilidades declaradas.
+El cargador necesita una versión válida para exportar. ModLab puede consultar sus metadatos oficiales o aceptar una versión introducida manualmente. La RAM definitiva se configura en el lanzador.
 
-La asignación real de RAM la hace el lanzador. La compatibilidad completa, el
-arranque en Minecraft y el rendimiento necesitan una prueba del juego.
+## Ejecutar desde el código
 
-## IA incluida, sin agentes externos
-
-El paquete completo incorpora `llama-cpp-python` y Qwen3-4B-Instruct-2507 en GGUF
-Q4_K_M (cuantización de Unsloth, modelo de Qwen, Apache-2.0). No necesita Ollama,
-cuenta de OpenAI, claves de IA ni procesos de agentes instalados aparte.
-El modelo ocupa aproximadamente 2,5 GB en disco. Durante la inferencia consume
-varios GB de RAM y CPU; en equipos modestos puede tardar varios minutos. La memoria
-se libera al terminar el diseño. Explorar mods no carga el modelo.
-
-El diseño usa el texto completo y las negaciones. El modelo propone objetivos y
-consultas funcionales; las consultas recuperan candidatos, no deciden por sí solas
-su pertinencia. Otra evaluación del modelo considera el conjunto y genera motivos
-por mod, descartando IDs incoherentes o puntuaciones no válidas. No se promete
-comprensión infalible: revisa los supuestos, exclusiones y razones antes de añadir.
-
-La selección trabaja con los datos de las fichas del catálogo; cuando son escuetos
-puede faltar información para justificar una recomendación. Las razones son criterio
-del modelo, no FPS medidos ni una garantía de compatibilidad.
-
-## Desarrollar y construir paquetes
-
-En un entorno virtual del desarrollador:
+En un entorno virtual de Python:
 
 ```bash
 python -m pip install -r requirements.txt
@@ -103,22 +52,16 @@ python scripts/fetch_model.py
 python app.py
 ```
 
-El script descarga una revisión fija del modelo y verifica tamaño y SHA-256.
-El usuario final recibe el modelo y el motor incluidos; no hace estos pasos.
+`fetch_model.py` descarga una revisión concreta del modelo y comprueba su SHA-256. Para generar una versión portátil:
 
 ```bash
 python -m pip install "pyinstaller>=6.16,<7"
 python build_portable.py
 ```
 
-Se genera un paquete en `dist/` para el sistema actual. Extrae y comparte la carpeta
-completa, incluido `_internal`. Linux y Windows necesitan sus propias compilaciones.
-El flujo manual de GitHub Actions prepara ambos, incorpora el modelo y usa la variable
-pública `SMAPT_CATALOG_URL`; no recibe ni empaqueta la clave privada de CurseForge.
-El paquete local de Linux se construye en CachyOS/glibc 2.44; otras distribuciones
-requieren comprobar compatibilidad o compilar desde una base más antigua.
+El paquete se crea en `dist/`. Hay que distribuir la carpeta completa, incluido `_internal`. Linux y Windows se compilan por separado. La versión Linux construida en CachyOS utiliza glibc 2.44; en otras distribuciones puede hacer falta compilar desde una base compatible. Hay un workflow manual en `.github/workflows/portable.yml`.
 
-## Validación
+## Pruebas
 
 ```bash
 python -m unittest discover -s tests -v
@@ -126,19 +69,16 @@ QT_QPA_PLATFORM=offscreen python app.py --smoke
 python scripts/evaluate_ai.py
 ```
 
-Las pruebas unitarias usan respuestas de CurseForge y modelos simulados: validan
-contratos, fuente, autenticación, dependencias, ZIP, paginación, selección y flujo Qt.
-`evaluate_ai.py` ejecuta el modelo real con descripciones opuestas y un conjunto
-explícito de fichas de evaluación; no finge resultados de una consulta en vivo.
-La comprobación completa con la API real requiere la clave del desarrollador.
+Las pruebas del repositorio usan respuestas simuladas de CurseForge; no verifican una conexión real con el proveedor. `evaluate_ai.py` permite comprobar el modelo con ejemplos de evaluación definidos en el propio proyecto.
 
-## Archivos
+## Código y dependencias
 
-- `app.py`: navegación y flujos de la aplicación.
-- `visual_widgets.py`: tarjetas, carga asíncrona de imágenes y arte de interfaz.
-- `curseforge.py`: catálogo oficial, archivos y dependencias.
-- `catalog_server.py`: pasarela del desarrollador para compartir la app sin claves.
-- `local_ai.py` / `intelligence.py`: inferencia local y diseño contextual.
-- `modpack.py`: manifiesto nativo y detección del cargador.
-- `core.py`: hardware, instancias y optimizador.
-- `build_portable.py` / `scripts/`: construcción y evaluación.
+- `app.py`: ventanas y navegación.
+- `visual_widgets.py`: tarjetas e imágenes del catálogo.
+- `curseforge.py` y `catalog_server.py`: consultas, archivos y pasarela.
+- `local_ai.py` e `intelligence.py`: modelo local y recomendaciones.
+- `modpack.py`: comprobación y exportación del modpack.
+- `core.py`: detección del equipo e instancias.
+- `build_portable.py` y `scripts/`: empaquetado y pruebas.
+
+Las licencias de las bibliotecas y del modelo están recogidas en [THIRD_PARTY.md](THIRD_PARTY.md).

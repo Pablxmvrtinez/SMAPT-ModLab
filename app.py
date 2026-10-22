@@ -119,7 +119,7 @@ class ModLab(QMainWindow):
         connection=QPushButton('Conexión del catálogo');connection.clicked.connect(self.configure_connection);sv.addWidget(connection)
         outer.addWidget(side)
         main=QWidget();mv=QVBoxLayout(main);mv.setContentsMargins(28,22,28,15);mv.setSpacing(14)
-        top=QHBoxLayout();top.addWidget(heading('Tu próximo mundo empieza aquí','h2'));top.addStretch()
+        top=QHBoxLayout();top.addWidget(heading('SMAPT ModLab','h2'));top.addStretch()
         top.addWidget(QLabel('Minecraft'));self.version=QComboBox();self.version.setEditable(True)
         self.version.addItems(['1.20.1','1.21.1','1.19.2','1.21.4','1.18.2','1.16.5']);top.addWidget(self.version)
         self.loader=QComboBox();self.loader.addItems(['Forge','Fabric','NeoForge']);top.addWidget(self.loader)
@@ -145,9 +145,9 @@ class ModLab(QMainWindow):
     def create_home(self):
         page=QWidget();v=QVBoxLayout(page);v.setContentsMargins(0,0,0,0);v.setSpacing(20)
         hero=QFrame();hero.setObjectName('hero');row=QHBoxLayout(hero);row.setContentsMargins(30,24,10,20)
-        text=QVBoxLayout();text.addWidget(heading('CONSTRUYE ALGO TUYO','eyebrow'))
-        text.addWidget(heading('Un mundo.\nTodas tus posibilidades.','heroTitle'))
-        sub=QLabel('Mods de CurseForge, tu estilo de juego y una IA local para darle forma.');sub.setWordWrap(True);sub.setObjectName('muted');text.addWidget(sub)
+        text=QVBoxLayout();text.addWidget(heading('MODPACKS DE MINECRAFT','eyebrow'))
+        text.addWidget(heading('Crea un modpack\na tu manera.','heroTitle'))
+        sub=QLabel('Busca mods en CurseForge o pide recomendaciones a la IA local.');sub.setWordWrap(True);sub.setObjectName('muted');text.addWidget(sub)
         actions=QHBoxLayout();create=QPushButton('✦  Crear con IA');create.setObjectName('primary');create.clicked.connect(lambda:self.navigate(1));actions.addWidget(create)
         explore=QPushButton('Explorar mods  →');explore.clicked.connect(lambda:self.navigate(2));actions.addWidget(explore);text.addLayout(actions);row.addLayout(text,1)
         art=Artwork();art.setMinimumSize(360,245);row.addWidget(art,1);v.addWidget(hero)
@@ -156,7 +156,7 @@ class ModLab(QMainWindow):
                                       ('▦  Encuentra tu próximo mod','Explora imágenes, categorías y proyectos del catálogo oficial. Añade lo que te guste a tu pack.','Abrir biblioteca',2)]:
             card=QFrame();card.setObjectName('modeCard');cv=QVBoxLayout(card);cv.setContentsMargins(22,20,22,20);cv.addWidget(heading(title))
             label=QLabel(desc);label.setWordWrap(True);label.setObjectName('muted');cv.addWidget(label);button=QPushButton(action+'  →');button.clicked.connect(lambda checked=False,i=index:self.navigate(i));cv.addWidget(button);modes.addWidget(card)
-        v.addLayout(modes);v.addWidget(heading('Explora tus posibilidades'));v.addWidget(self.theme_grid());v.addStretch();return scroll_page(page)
+        v.addLayout(modes);v.addWidget(heading('Explorar por categorías'));v.addWidget(self.theme_grid());v.addStretch();return scroll_page(page)
 
     def theme_grid(self):
         box=QWidget();grid=QGridLayout(box);grid.setContentsMargins(0,0,0,0);grid.setSpacing(10)
@@ -167,8 +167,8 @@ class ModLab(QMainWindow):
 
     def create_ai(self):
         page=QWidget();v=QVBoxLayout(page);v.setContentsMargins(0,0,0,0);v.setSpacing(12)
-        v.addWidget(heading('Describe la experiencia. La IA prepara las opciones.','h1'))
-        note=QLabel('Sin filtros obligatorios. La IA se ejecuta dentro de ModLab y trabaja con mods de CurseForge.');note.setObjectName('muted');note.setWordWrap(True);v.addWidget(note)
+        v.addWidget(heading('Crear un pack con IA local','h1'))
+        note=QLabel('Describe lo que buscas. El modelo local propone mods del catálogo de CurseForge.');note.setObjectName('muted');note.setWordWrap(True);v.addWidget(note)
         self.prompt=QTextEdit();self.prompt.setMaximumHeight(110)
         self.prompt.setPlaceholderText('Quiero construir tranquilo, explorar con amigos, algún jefe opcional y buen rendimiento en un PC modesto…')
         self.prompt.setPlainText('Quiero un modpack tranquilo para jugar chill, construir y pelear con algún jefe que otro, optimizado para un PC modesto.');v.addWidget(self.prompt)
@@ -185,13 +185,13 @@ class ModLab(QMainWindow):
         self.ai_summary=QTextEdit();self.ai_summary.setReadOnly(True);self.ai_summary.setMaximumHeight(100)
         self.ai_summary.setPlaceholderText('Aquí verás el criterio de la propuesta, sus supuestos y lo que se evita.');v.addWidget(self.ai_summary)
         self.ai_grid=CardGrid(self.images);self.ai_grid.add.connect(self.add_mod);self.ai_grid.details.connect(self.show_details);v.addWidget(self.ai_grid,1)
-        bottom=QHBoxLayout();self.ai_count=QLabel('Las recomendaciones aparecerán como tarjetas con su explicación.');self.ai_count.setWordWrap(True);bottom.addWidget(self.ai_count,1)
+        bottom=QHBoxLayout();self.ai_count=QLabel('Aquí aparecerán los mods recomendados y el motivo.');self.ai_count.setWordWrap(True);bottom.addWidget(self.ai_count,1)
         self.add_all=QPushButton('Añadir propuesta al pack');self.add_all.setEnabled(False);self.add_all.clicked.connect(self.add_proposal);bottom.addWidget(self.add_all);v.addLayout(bottom)
         return page
 
     def create_browser(self):
         page=QWidget();v=QVBoxLayout(page);v.setContentsMargins(0,0,0,0);v.setSpacing(12)
-        v.addWidget(heading('Una biblioteca para perderse. Un pack para encontrarse.','h1'))
+        v.addWidget(heading('Explorar mods','h1'))
         row=QHBoxLayout();self.search=QLineEdit();self.search.setPlaceholderText('Buscar mods en CurseForge: Create, muebles, mapas…');self.search.returnPressed.connect(self.search_browser);row.addWidget(self.search,1)
         self.category=QComboBox();self.category.addItem('Todas las categorías',None);self.category.setMinimumWidth(190)
         self.category.currentIndexChanged.connect(self.search_browser);row.addWidget(self.category)
@@ -206,7 +206,7 @@ class ModLab(QMainWindow):
 
     def create_pack(self):
         page=QWidget();v=QVBoxLayout(page);v.setContentsMargins(0,0,0,0)
-        v.addWidget(heading('Tu modpack, pieza a pieza.','h1'))
+        v.addWidget(heading('Mi modpack','h1'))
         row=QHBoxLayout();self.pack_name=QLineEdit('Mi modpack Acheron');row.addWidget(self.pack_name,1)
         self.loader_build=QLineEdit();self.loader_build.setPlaceholderText('Cargador automático · versión manual opcional');row.addWidget(self.loader_build,1);v.addLayout(row)
         self.pack_summary=QLabel('Añade mods desde Explorar o desde una propuesta de IA.');self.pack_summary.setObjectName('muted');self.pack_summary.setWordWrap(True);v.addWidget(self.pack_summary)
