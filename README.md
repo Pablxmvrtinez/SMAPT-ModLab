@@ -1,5 +1,3 @@
-![SMAPT ModLab, cabecera oscura de inspiración shinobi](assets/kakashi-inspired-banner.svg)
-
 <p align="center">
   <strong>Un modpack a tu medida, desde el escritorio.</strong>
 </p>
