@@ -1,59 +1,64 @@
 # SMAPT ModLab
 
-**Crea y organiza modpacks de Minecraft desde tu escritorio.**
+**Crea y comparte modpacks de Minecraft sin configurar una API ni tener conocimientos de programación.**
 
-[![Pruebas](https://github.com/Pablxmvrtinez/SMAPT-ModLab/actions/workflows/tests.yml/badge.svg)](https://github.com/Pablxmvrtinez/SMAPT-ModLab/actions/workflows/tests.yml) ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-EAA33B)
+[![Pruebas automáticas](https://github.com/Pablxmvrtinez/SMAPT-ModLab/actions/workflows/tests.yml/badge.svg)](https://github.com/Pablxmvrtinez/SMAPT-ModLab/actions/workflows/tests.yml)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Beta](https://img.shields.io/badge/estado-beta-orange)
 
-ModLab combina un explorador de mods, un editor de packs, un comprobador de dependencias y un diseñador de experiencias con IA local. Puedes elegir mods manualmente o explicar cómo quieres jugar y revisar las recomendaciones antes de añadirlas.
+SMAPT ModLab es un programa de escritorio para buscar mods, organizar selecciones y exportar packs compatibles con los lanzadores de Minecraft.
 
-> **Estado:** en desarrollo. La búsqueda real necesita una conexión autorizada con CurseForge. El constructor portátil y el motor de IA están implementados, pero todavía falta probar una distribución completa en Windows y Linux. No se incluyen claves privadas ni JAR de otros autores.
+**No necesitas cuenta, API key ni IA** para usar el nuevo catálogo público de **Modrinth**. Puedes buscar mods y generar archivos `.mrpack` para importarlos en **Modrinth App** o **Prism Launcher**. La integración con CurseForge se conserva como modo opcional para desarrolladores con acceso autorizado.
 
-## Contenido
+> **Edición beta:** el programa y los archivos exportados todavía requieren pruebas en equipos reales. El catálogo de Modrinth usa Internet y respeta sus límites de consultas. Los mods y sus licencias siguen perteneciendo a sus autores.
 
-- [Funciones y estado](#funciones-y-estado)
-- [Cómo utilizar la aplicación](#cómo-utilizar-la-aplicación)
-- [Instalación desde el código](#instalación-desde-el-código)
-- [Conexión con CurseForge](#conexión-con-curseforge)
-- [Guardar y exportar packs](#guardar-y-exportar-packs)
-- [Optimizar y restaurar gráficos](#optimizar-y-restaurar-gráficos)
-- [Crear ejecutables](#crear-ejecutables)
-- [Solución de problemas](#solución-de-problemas)
+## Descargar
 
-## Funciones y estado
+Ve a **[Releases de SMAPT-ModLab](https://github.com/Pablxmvrtinez/SMAPT-ModLab/releases)** y elige tu sistema:
 
-| Función | Situación |
-| --- | --- |
-| Navegación, exploración visual y selección de mods | Implementada; la búsqueda requiere API |
-| Proyectos JSON, revisión de dependencias y exportación ZIP | Cubiertos por pruebas con respuestas simuladas |
-| IA local para interpretar peticiones y recomendar mods | Integrada; falta una prueba real de extremo a extremo con el modelo descargado |
-| Detección de instancias y ajustes gráficos con copias de seguridad | Implementados y probados |
-| Ejecutables portátiles | Constructor disponible; aún sin versión final validada |
+- **Windows:** descarga el archivo ZIP para Windows, descomprímelo y abre `SMAPT-ModLab.exe`.
+- **Linux:** descarga el `.tar.gz`, extráelo y ejecuta `Abrir-ModLab.sh` dentro de la carpeta.
+- No copies solo el ejecutable: la carpeta `_internal` contiene las bibliotecas necesarias.
 
-**Importante:** un ZIP exportado por ModLab no contiene archivos JAR. Incluye identificadores oficiales para que CurseForge descargue los mods admitidos al importar el pack.
+Si todavía no aparece ninguna versión, consulta el [estado de las compilaciones](https://github.com/Pablxmvrtinez/SMAPT-ModLab/actions/workflows/portable.yml). Las descargas se publican tras superar las pruebas y el arranque básico en ambos sistemas.
 
-## Cómo utilizar la aplicación
+**Importante:** la edición pública no incluye el modelo de IA de 2,5 GB. Por eso la descarga es más ligera. El catálogo y la exportación públicos funcionan sin ese modelo.
 
-1. Elige la **versión de Minecraft** y el **cargador** (Forge, Fabric o NeoForge) en la parte superior.
-2. Abre **Explorar mods** para buscar por nombre o categoría, o **Crear con IA** para describir una experiencia de juego. Ambas funciones necesitan el catálogo; la segunda también necesita el modelo local.
-3. Revisa los resultados y añade los mods a **Mi modpack**.
-4. Guarda el proyecto en JSON cuando quieras retomarlo. Si cambias de versión o cargador, ModLab mantiene tus proyectos seleccionados y vuelve a comprobar los archivos compatibles.
-5. Utiliza **Comprobar pack** para revisar dependencias y conflictos declarados.
-6. Pulsa **Crear ZIP para CurseForge** e impórtalo desde el lanzador de CurseForge, en Minecraft > Importar.
+## Crear tu primer modpack
 
-Las advertencias se basan en metadatos oficiales. **No garantizan que Minecraft arranque** con cualquier combinación: siempre conviene probar el modpack antes de compartirlo.
+1. Abre el programa y pulsa **Empezar sin claves** o entra en **Mods públicos**.
+2. Selecciona arriba la **versión de Minecraft** y el **cargador** (Fabric, Forge o NeoForge).
+3. Busca mods por nombre. También puedes navegar por los resultados populares.
+4. Pulsa **Añadir** en los mods que quieras. Aparecerán en **Mi selección para Modrinth**.
+5. Escribe un nombre para tu modpack y pulsa **Exportar paquete .mrpack**.
+6. ModLab consulta los archivos compatibles y sus dependencias obligatorias; si algo no encaja, te muestra un error y conserva la selección.
+7. Importa el archivo generado en **Modrinth App** o **Prism Launcher** y prueba el juego.
 
-## Instalación desde el código
+El `.mrpack` contiene nombres, hashes y URL de descarga de archivos oficiales, **no incluye los JAR**. Al importar el pack, el lanzador obtiene los archivos correspondientes.
 
-Necesitas **Python 3.12** (recomendado), Internet para instalar dependencias y unos 2,5 GB de almacenamiento para el modelo GGUF, además de RAM libre para ejecutarlo.
+Si lo quieres retomar más tarde, usa **Guardar selección**. El botón **Abrir selección** recupera ese proyecto en formato JSON.
 
-Descarga el repositorio y abre una terminal en su carpeta principal.
+### ¿Y CurseForge?
+
+La pestaña **Explorar mods** utiliza CurseForge y requiere una clave personal o acceso autorizado configurado en **Conexión del catálogo**. No es necesario para el modo público. **No se incluye tu clave en el programa**, y no se publica un proxy compartido sin permiso de CurseForge.
+
+Las condiciones de la API están disponibles en [CurseForge Third-Party Terms](https://support.curseforge.com/support/solutions/articles/9000207405-curseforge-3rd-party-api-terms-and-conditions).
+
+### ¿Y la IA?
+
+La sección **Crear con IA** es opcional y necesita instalar el motor local y el modelo GGUF. No utiliza una API de pago, pero la edición pública básica no lo incluye.
+
+Si quieres ejecutar la edición con IA **desde el código**, instala las dependencias adicionales indicadas más abajo y descarga el modelo verificado. La IA propone mods de CurseForge cuando el catálogo está autorizado. Por ahora **no genera directamente modpacks de Modrinth**.
+
+## Instalar desde el código
+
+Necesitas Python 3.12, acceso a Internet para instalar dependencias y los archivos de este repositorio.
 
 **Linux:**
 
 ~~~bash
 python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python scripts/fetch_model.py
 .venv/bin/python app.py
 ~~~
 
@@ -62,84 +67,66 @@ python3.12 -m venv .venv
 ~~~powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe scripts\fetch_model.py
 .\.venv\Scripts\python.exe app.py
 ~~~
 
-`fetch_model.py` descarga una revisión fijada del modelo, comprueba el tamaño y verifica SHA-256. La IA utiliza `llama-cpp-python` con `Qwen3-4B-Instruct-2507`, sin requerir Ollama ni una suscripción externa.
+Estos comandos instalan la **edición pública** sin IA. No hace falta pedir una clave de Modrinth.
 
-Para probar solo el arranque de la interfaz, sin ejecutar el modelo:
+**IA opcional**, desde una instalación de desarrollo:
 
 ~~~bash
-python app.py --smoke
+python -m pip install -r requirements-ai.txt
+python scripts/fetch_model.py
+python app.py
 ~~~
 
-## Conexión con CurseForge
+El modelo utiliza `llama-cpp-python` y Qwen3-4B-Instruct-2507 GGUF. Su descarga está fijada por revisión y se valida con SHA-256. Requiere varios GB de memoria libre.
 
-La aplicación se puede abrir sin una clave, pero **no podrá consultar mods reales ni verificar archivos para exportar** hasta conectar el catálogo. Para tus pruebas de desarrollo:
+## Compilar versiones portátiles
 
-1. Solicita una clave conforme a las [instrucciones de CurseForge](https://support.curseforge.com/support/solutions/articles/9000208346-about-the-curseforge-api-and-how-to-apply-for-a-key).
-2. Configura la variable de entorno `CURSEFORGE_API_KEY` o utiliza el cuadro **Conexión del catálogo** de la aplicación.
-3. Comprueba que aparecen las categorías y que una búsqueda devuelve resultados.
-
-Ejemplo para una sesión local de Linux:
+Para crear el paquete del sistema en el que estás trabajando:
 
 ~~~bash
-export CURSEFORGE_API_KEY="TU_CLAVE_PERSONAL"
-.venv/bin/python app.py
-~~~
-
-**Nunca publiques la clave en GitHub ni dentro del ejecutable.** Las [condiciones de CurseForge](https://support.curseforge.com/support/solutions/articles/9000207405-curseforge-3rd-party-api-terms-and-conditions) restringen compartir claves y utilizar proxies. La herramienta `catalog_server.py` es experimental, no una pasarela pública aprobada. Una distribución lista para todos necesita un método autorizado por CurseForge.
-
-## Guardar y exportar packs
-
-**Guardar proyecto** genera un archivo JSON con tu selección y sus datos esenciales. Puedes recuperarlo con **Abrir proyecto**. Los archivos JSON de procedencia desconocida se validan antes de cargarlos.
-
-**Comprobar pack** consulta CurseForge para verificar archivos compatibles y dependencias obligatorias; si encuentra una incompatibilidad declarada, se detiene y explica el problema. **Crear ZIP** hace la comprobación de nuevo y exporta un manifiesto con `projectID` y `fileID`, más información del pack.
-
-Después abre el lanzador CurseForge e importa ese ZIP. CurseForge se encarga de descargar los JAR permitidos. Algunos proyectos no ofrecen una versión estable para todas las combinaciones de Minecraft y cargador; ModLab no inventa versiones que no existen.
-
-## Optimizar y restaurar gráficos
-
-En **Mi equipo** podrás consultar tu hardware e instancias detectadas de CurseForge o Prism. En **Optimizar** selecciona una instancia y elige una prioridad: equilibrado, máximos FPS o calidad visual.
-
-Al pulsar **Aplicar gráficos con copia de seguridad**, ModLab ajusta distancia de renderizado, simulación, FPS y opciones gráficas compatibles después de pedir confirmación. Antes de cambiar nada, guarda el estado anterior en la carpeta `.smapt-backups/` de la instancia.
-
-**Restaurar última copia de gráficos** recupera los ajustes guardados. Antes de hacerlo genera otra copia del estado actual, por si quieres deshacer esa restauración. **Cierra Minecraft antes de aplicar o restaurar cambios.** La memoria RAM asignada a Java se cambia desde el lanzador, no desde ModLab.
-
-## Crear ejecutables
-
-Con las dependencias instaladas y el modelo ya descargado:
-
-~~~bash
-python -m pip install "pyinstaller>=6.16,<7"
+python -m pip install -r requirements.txt "pyinstaller>=6.16,<7"
 python build_portable.py
 ~~~
 
-El paquete se genera en `dist/`. **No copies solamente el EXE o el binario:** conserva toda la carpeta, incluida `_internal`. Windows y Linux se compilan por separado. En Linux puede ser necesario compilar desde una distribución con bibliotecas compatibles con los equipos de destino.
+El resultado aparece en `dist/`. Para incluir la IA en una compilación de desarrollo, instala `requirements-ai.txt`, descarga el modelo y configura `SMAPT_INCLUDE_AI=1` antes de ejecutar el constructor.
 
-Hay un [workflow de empaquetado manual](.github/workflows/portable.yml), pero todavía no está confirmado un lanzamiento final probado en ambos sistemas.
+El [workflow de compilación](.github/workflows/portable.yml) genera una edición pública para Windows y Linux y puede publicar las descargas de la versión beta tras sus comprobaciones.
 
-## Solución de problemas
+## Otras funciones
 
-**«El catálogo no está conectado».** Verifica el acceso autorizado a CurseForge y tu conexión. No se utiliza un catálogo alternativo oculto.
+**Mi equipo y Optimizar:** identifica instancias de Prism y CurseForge cuando usan rutas conocidas. Permite proponer ajustes gráficos y aplicarlos tras tu confirmación; guarda antes una copia de los originales. También hay una opción **Restaurar última copia de gráficos**. Cierra Minecraft antes de aplicar o restaurar.
 
-**«Esta instalación no incluye la IA».** Descarga el modelo con `scripts/fetch_model.py` y revisa las dependencias y la memoria RAM disponible.
+**Proyectos de CurseForge:** selecciona mods, guárdalos en JSON, consulta sus dependencias y exporta un ZIP de importación si tienes acceso autorizado al catálogo.
 
-**«No hay archivo estable compatible».** Elige otra versión de Minecraft, otro cargador o sustituye ese mod.
+**Modo público Modrinth:** funciona de forma independiente: sus selecciones JSON y paquetes `.mrpack` no son intercambiables automáticamente con los proyectos ZIP de CurseForge.
 
-**«Mi instancia no aparece».** Comprueba que tiene una carpeta reconocida por el lanzador. Las rutas de instalación personalizadas pueden requerir detección adicional.
+## Problemas habituales
 
-**«El pack se importa, pero el juego falla».** La comprobación de metadatos no detecta todos los conflictos. Prueba los mods en una instancia separada y revisa los logs de Minecraft.
+**«Modrinth limita las peticiones».** El servicio establece un límite de consultas por IP; espera y vuelve a intentarlo.
 
-Para ejecutar las pruebas sin mostrar la ventana:
+**«No hay versión compatible».** Cambia la versión de Minecraft, el cargador o elimina ese mod de tu selección.
+
+**«El pack no funciona al importarlo».** Los metadatos de dependencias ayudan, pero no garantizan compatibilidad con todas las combinaciones. Prueba los mods en una instancia independiente y revisa los registros de Minecraft.
+
+**«La IA no está disponible».** Es normal en la edición pública. El buscador y la exportación no la necesitan.
+
+**«CurseForge no está conectado».** Usa el catálogo público de Modrinth o configura una clave de desarrollador autorizada.
+
+## Pruebas y código
+
+Las pruebas unitarias cubren búsqueda pública, selección de versiones, verificación de URL y hashes, dependencias, formato `.mrpack`, interfaz, exportación de CurseForge y restauración de gráficos.
 
 ~~~bash
 QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
 ~~~
 
-En Windows utiliza `python -m unittest discover -s tests -v` sin el prefijo de Linux. Estas pruebas emplean respuestas simuladas, no tu clave real. GitHub también ejecuta [pruebas automáticas](.github/workflows/tests.yml) al subir cambios.
+En Windows elimina el prefijo de variable de entorno. El proceso de CI comprueba Linux y Windows; las pruebas simuladas no sustituyen un test funcional de los mods reales en Minecraft.
 
-## Licencias y agradecimientos
+Los archivos principales son `app.py` (interfaz), `public_page.py` (modo público), `public_catalog.py` (API pública y MRPACK), `curseforge.py` (API con clave), `modpack.py` (ZIP para CurseForge) y `core.py` (detección y gráficos).
 
-ModLab utiliza Python, PySide6, Requests, psutil, `llama-cpp-python` y el modelo Qwen3-4B-Instruct-2507 (GGUF). Las condiciones y enlaces de las dependencias se detallan en [THIRD_PARTY.md](THIRD_PARTY.md).
+## Créditos y licencias
+
+Este proyecto utiliza Python, PySide6, Requests y psutil. Consulta [THIRD_PARTY.md](THIRD_PARTY.md) para licencias y referencias de las bibliotecas y del modelo de IA. Las fichas, iconos y archivos de mods se obtienen desde sus respectivos servicios y siguen sujetos a los permisos de sus autores.

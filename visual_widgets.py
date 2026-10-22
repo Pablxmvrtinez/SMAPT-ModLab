@@ -21,7 +21,7 @@ class Images:
     def fetch(self,url,callback):
         parsed=QUrl(url)
         host=parsed.host()
-        if parsed.scheme()!='https' or not (host=='forgecdn.net' or host.endswith('.forgecdn.net')):return
+        if parsed.scheme()!='https' or not (host=='forgecdn.net' or host.endswith('.forgecdn.net') or host=='cdn.modrinth.com'):return
         if url in self.pending:self.pending[url].append(callback);return
         self.pending[url]=[callback]
         request=QNetworkRequest(parsed);request.setTransferTimeout(12000)
@@ -108,7 +108,7 @@ class ModCard(QFrame):
         v=QVBoxLayout(self);v.setContentsMargins(12,12,12,12);v.setSpacing(8)
         url=next((u for u in mod.get('screenshots',[]) if u),None) or mod.get('logo','')
         v.addWidget(Cover(mod['title'],url,images))
-        top=QHBoxLayout();source=QLabel('CURSEFORGE');source.setObjectName('source');top.addWidget(source)
+        top=QHBoxLayout();source=QLabel('MODRINTH' if mod.get('source')=='modrinth' else 'CURSEFORGE');source.setObjectName('source');top.addWidget(source)
         top.addStretch();count=QLabel('↓ '+downloads(mod.get('downloads',0)));count.setObjectName('muted');top.addWidget(count);v.addLayout(top)
         title=QLabel(mod['title']);title.setTextFormat(Qt.TextFormat.PlainText);title.setWordWrap(True)
         title.setObjectName('cardTitle');title.setFixedHeight(42);v.addWidget(title)

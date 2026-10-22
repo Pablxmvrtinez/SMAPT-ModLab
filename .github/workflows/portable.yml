@@ -1,48 +1,53 @@
-name: Paquetes portables
+name: Compilaciones públicas
+
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest]
+        os: [ubuntu-22.04, windows-2022]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Instalar dependencias de construcción
-        env:
-          CMAKE_ARGS: '-DGGML_NATIVE=OFF -DGGML_CUDA=OFF'
-          CMAKE_BUILD_PARALLEL_LEVEL: '3'
+      - name: Bibliotecas de Qt en Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libopengl0 libxkbcommon-x11-0
+      - name: Instalar dependencias
         run: python -m pip install -r requirements.txt "pyinstaller>=6.16,<7"
-      - name: Preparar modelo integrado
-        run: python scripts/fetch_model.py
       - name: Pruebas
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m unittest discover -s tests -v
-      - name: Construir portable
-        env:
-          SMAPT_CATALOG_URL: ${{ vars.SMAPT_CATALOG_URL }}
+      - name: Construir edición pública sin claves
         run: python build_portable.py
-      - name: Verificar ejecutable Linux
+      - name: Comprobar ejecutable Linux
         if: runner.os == 'Linux'
         env:
           QT_QPA_PLATFORM: offscreen
         run: dist/SMAPT-ModLab/SMAPT-ModLab --smoke
-      - name: Verificar ejecutable Windows
+      - name: Comprobar ejecutable Windows
         if: runner.os == 'Windows'
+        shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
-        shell: pwsh
         run: |
-          $process = Start-Process -FilePath 'dist/SMAPT-ModLab/SMAPT-ModLab.exe' -ArgumentList '--smoke' -Wait -PassThru
-          if ($process.ExitCode -ne 0) { exit $process.ExitCode }
-      - name: Guardar paquete
+          $p = Start-Process -FilePath 'dist/SMAPT-ModLab/SMAPT-ModLab.exe' -ArgumentList '--smoke' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { exit $p.ExitCode }
+      - name: Guardar paquetes descargables
         uses: actions/upload-artifact@v4
         with:
           name: SMAPT-ModLab-${{ runner.os }}
@@ -50,3 +55,29 @@ jobs:
             dist/*.zip
             dist/*.tar.gz
           if-no-files-found: error
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: SMAPT-ModLab-*
+          path: artifacts
+          merge-multiple: true
+      - name: Publicar descargas beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -lh artifacts/
+          if gh release view v0.1.0-beta >/dev/null 2>&1; then
+            gh release upload v0.1.0-beta artifacts/*.zip artifacts/*.tar.gz --clobber
+          else
+            gh release create v0.1.0-beta artifacts/*.zip artifacts/*.tar.gz \
+              --target "$GITHUB_SHA" --title "SMAPT ModLab 0.1.0 beta" --prerelease \
+              --notes "Edición pública sin clave: buscar mods en Modrinth y exportar archivos mrpack. El catálogo de CurseForge sigue requiriendo acceso autorizado. La IA local no viene incluida en esta descarga beta."
+          fi

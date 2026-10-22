@@ -12,26 +12,33 @@ import tarfile
 
 def main():
     root=Path(__file__).resolve().parent
-    model=root/'assets/models/Qwen3-4B-Instruct-2507-Q4_K_M.gguf'
-    if not model.is_file() or model.stat().st_size!=2497281120:
-        raise SystemExit('Falta el modelo integrado. Ejecuta primero python scripts/fetch_model.py.')
-    if importlib.util.find_spec('llama_cpp') is None:
-        raise SystemExit('Instala las dependencias de requirements.txt para construir la edición completa.')
+    # La edición pública debe compilarse sin una clave de API ni descargar 2,5 GB de IA.
+    # La edición con modelo integrado sigue disponible como compilación opcional.
+    include_ai = os.getenv("SMAPT_INCLUDE_AI") == "1"
+    model = root/'assets/models/Qwen3-4B-Instruct-2507-Q4_K_M.gguf'
+    if include_ai:
+        if not model.is_file() or model.stat().st_size != 2497281120:
+            raise SystemExit("Falta el modelo. Ejecuta python scripts/fetch_model.py.")
+        if importlib.util.find_spec("llama_cpp") is None:
+            raise SystemExit("Instala requirements-ai.txt para la edición con IA.")
+
     with tempfile.TemporaryDirectory(prefix='smapt-build-') as temp:
         import json
         config=Path(temp)/'app-config.json'
         config.write_text(json.dumps({'catalog_url':os.getenv('SMAPT_CATALOG_URL','')}))
         env=dict(os.environ,PYINSTALLER_CONFIG_DIR=str(Path(temp)/'cache'))
-        subprocess.run([sys.executable,'-m','PyInstaller','--onedir','--windowed',
-            '--name','SMAPT-ModLab','--noupx','--noconfirm',
-            '--collect-all','llama_cpp','--exclude-module','llama_cpp.server',
-            '--exclude-module','torch','--exclude-module','transformers',
-            '--add-data',str(model)+':assets/models',
-            '--add-data',str(root/'assets/models/LICENSE')+':assets/models',
-            '--add-data',str(config)+':.',
-            '--distpath',str(root/'dist'),'--workpath',str(Path(temp)/'work'),
-            '--specpath',temp,'--log-level','WARN',str(root/'app.py')],
-            cwd=root,env=env,check=True)
+        extras = (['--collect-all','llama_cpp','--exclude-module','llama_cpp.server',
+                    '--add-data',str(model)+':assets/models']
+                  if include_ai else ['--exclude-module','llama_cpp'])
+        subprocess.run([sys.executable, '-m', 'PyInstaller', '--onedir', '--windowed',
+            '--name', 'SMAPT-ModLab', '--noupx', '--noconfirm',
+            *extras,
+            '--exclude-module', 'torch', '--exclude-module', 'transformers',
+            '--add-data', str(root/'assets/models/LICENSE')+':assets/models',
+            '--add-data', str(config)+':.',
+            '--distpath', str(root/'dist'), '--workpath', str(Path(temp)/'work'),
+            '--specpath', temp, '--log-level', 'WARN', str(root/'app.py')],
+            cwd=root, env=env, check=True)
     folder=root/'dist'/'SMAPT-ModLab'
     for name in ('README.md','THIRD_PARTY.md'):
         shutil.copy2(root/name,folder/name)

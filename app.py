@@ -18,6 +18,7 @@ from local_ai import LocalAI
 from modpack import build_pack,resolve_loader_version,audit_pack
 from core import hardware,instances,recommend,apply_graphics,restore_graphics,latest_graphics_backup,save_plan
 from visual_widgets import Images,Artwork,CardGrid,Cover,LABELS
+from public_page import PublicPage
 
 STYLE="""
 QWidget { background: #0d0f15; color: #e8eaf1; font-family: Inter, 'Noto Sans', sans-serif; font-size: 12px; }
@@ -112,7 +113,7 @@ class ModLab(QMainWindow):
         side=QFrame();side.setObjectName('sidebar');side.setFixedWidth(200);sv=QVBoxLayout(side);sv.setContentsMargins(16,28,16,22);sv.setSpacing(8)
         sv.addWidget(heading('SMAPT','brand'));sv.addWidget(heading('M O D L A B','eyebrow'));sv.addSpacing(30)
         self.nav=[]
-        for name,index in [('⌂   Inicio',0),('✦   Crear con IA',1),('▦   Explorar mods',2),('▣   Mi modpack',3),('⌘   Mi equipo',4),('↗   Optimizar',5)]:
+        for name,index in [('⌂   Inicio',0),('✦   Crear con IA',1),('▦   Explorar mods',2),('▣   Mi modpack',3),('⌘   Mi equipo',4),('↗   Optimizar',5),('♧   Mods públicos',6)]:
             button=QPushButton(name);button.setObjectName('nav');button.setCheckable(True)
             button.clicked.connect(lambda checked=False,i=index:self.navigate(i));sv.addWidget(button);self.nav.append(button)
         sv.addStretch();sv.addWidget(heading('ACHERON EDITION','eyebrow'))
@@ -129,7 +130,8 @@ class ModLab(QMainWindow):
         self.images=Images(self);self.stack=QStackedWidget();mv.addWidget(self.stack,1)
         self.stack.addWidget(self.create_home());self.stack.addWidget(self.create_ai());self.stack.addWidget(self.create_browser());self.stack.addWidget(self.create_pack())
         self.stack.addWidget(self.create_overview());self.stack.addWidget(self.create_optimizer())
-        bottom=QHBoxLayout();self.status=QLabel('Listo. Catálogo exclusivo de CurseForge.');self.status.setWordWrap(True);self.status.setObjectName('muted');bottom.addWidget(self.status,1)
+        self.public_page=PublicPage(self);self.stack.addWidget(self.public_page)
+        bottom=QHBoxLayout();self.status=QLabel('Listo. Modrinth sin claves · CurseForge opcional.');self.status.setWordWrap(True);self.status.setObjectName('muted');bottom.addWidget(self.status,1)
         self.cancel_button=QPushButton('Cancelar');self.cancel_button.setVisible(False);self.cancel_button.clicked.connect(self.cancel_task);bottom.addWidget(self.cancel_button);mv.addLayout(bottom)
         self.progress=QProgressBar();self.progress.setRange(0,0);self.progress.setTextVisible(False);self.progress.hide();mv.addWidget(self.progress)
         outer.addWidget(main,1)
@@ -142,19 +144,20 @@ class ModLab(QMainWindow):
         self.stack.setCurrentIndex(index)
         for i,button in enumerate(self.nav):button.setChecked(i==index)
         if index==2 and not self.browse_mods and not self.busy and (self.catalog.connection.gateway or self.catalog.connection.api_key):self.search_browser()
+        if index==6 and not self.public_page.loaded and not self.busy:self.public_page.search_mods()
 
     def create_home(self):
         page=QWidget();v=QVBoxLayout(page);v.setContentsMargins(0,0,0,0);v.setSpacing(20)
         hero=QFrame();hero.setObjectName('hero');row=QHBoxLayout(hero);row.setContentsMargins(30,24,10,20)
         text=QVBoxLayout();text.addWidget(heading('MODPACKS DE MINECRAFT','eyebrow'))
         text.addWidget(heading('Crea un modpack\na tu manera.','heroTitle'))
-        sub=QLabel('Busca mods en CurseForge o pide recomendaciones a la IA local.');sub.setWordWrap(True);sub.setObjectName('muted');text.addWidget(sub)
-        actions=QHBoxLayout();create=QPushButton('✦  Crear con IA');create.setObjectName('primary');create.clicked.connect(lambda:self.navigate(1));actions.addWidget(create)
-        explore=QPushButton('Explorar mods  →');explore.clicked.connect(lambda:self.navigate(2));actions.addWidget(explore);text.addLayout(actions);row.addLayout(text,1)
+        sub=QLabel('Explora mods públicos sin claves. CurseForge y la IA local son opciones adicionales.');sub.setWordWrap(True);sub.setObjectName('muted');text.addWidget(sub)
+        actions=QHBoxLayout();create=QPushButton('Empezar sin claves');create.setObjectName('primary');create.clicked.connect(lambda:self.navigate(6));actions.addWidget(create)
+        explore=QPushButton('Crear con IA (opcional)  →');explore.clicked.connect(lambda:self.navigate(1));actions.addWidget(explore);text.addLayout(actions);row.addLayout(text,1)
         art=Artwork();art.setMinimumSize(360,245);row.addWidget(art,1);v.addWidget(hero)
         modes=QHBoxLayout()
-        for title,desc,action,index in [('✦  Imagina tu modpack','Describe cómo quieres jugar. La IA interpreta el ritmo, busca alternativas y explica cada recomendación.','Diseñar mi experiencia',1),
-                                      ('▦  Encuentra tu próximo mod','Explora imágenes, categorías y proyectos del catálogo oficial. Añade lo que te guste a tu pack.','Abrir biblioteca',2)]:
+        for title,desc,action,index in [('♧  Catálogo público de Modrinth','Busca mods libremente, añade tus favoritos y exporta un paquete para Prism o Modrinth App. No necesitas claves.','Explorar gratis',6),
+                                      ('▦  CurseForge (opcional)','Busca mods de CurseForge si tienes una conexión autorizada a su API.','Abrir CurseForge',2)]:
             card=QFrame();card.setObjectName('modeCard');cv=QVBoxLayout(card);cv.setContentsMargins(22,20,22,20);cv.addWidget(heading(title))
             label=QLabel(desc);label.setWordWrap(True);label.setObjectName('muted');cv.addWidget(label);button=QPushButton(action+'  →');button.clicked.connect(lambda checked=False,i=index:self.navigate(i));cv.addWidget(button);modes.addWidget(card)
         v.addLayout(modes);v.addWidget(heading('Explorar por categorías'));v.addWidget(self.theme_grid());v.addStretch();return scroll_page(page)
@@ -439,6 +442,7 @@ class ModLab(QMainWindow):
         for mod in self.pack.values():
             for key in ('file_id','file','version_number','minecraft','loader'):mod.pop(key,None)
         self.browse_mods=[];self.browse_grid.show_mods([]);self.refresh_pack()
+        self.public_page.target_changed()
         self.status.setText('Versión cambiada. El pack conserva sus mods y se verificará de nuevo al exportar.')
 
     def save_project(self):

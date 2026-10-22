@@ -30,7 +30,7 @@ class DesignUITests(unittest.TestCase):
         self.qt.processEvents();self.assertFalse(self.window.tasks)
     def test_two_modes_and_many_categories(self):
         self.assertGreaterEqual(len(THEMES),24)
-        self.assertEqual(self.window.stack.count(),6)
+        self.assertEqual(self.window.stack.count(),7)
         self.window.navigate(1);self.assertEqual(self.window.stack.currentIndex(),1)
     def test_fifty_visual_cards_and_pagination(self):
         self.window.search_browser();self.wait()
