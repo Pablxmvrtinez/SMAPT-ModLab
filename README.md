@@ -1,4 +1,20 @@
-# SMAPT ModLab
+![SMAPT ModLab, cabecera oscura de inspiración shinobi](assets/kakashi-inspired-banner.svg)
+
+<p align="center">
+  <strong>Un modpack a tu medida, desde el escritorio.</strong>
+</p>
+<p align="center">
+  <code>Python</code> · <code>PySide6</code> · <code>CurseForge</code> · <code>IA local</code>
+</p>
+
+<p align="center">
+  <a href="#funciones">Funciones</a> ·
+  <a href="#uso">Uso</a> ·
+  <a href="#ejecutar-desde-el-código">Instalación</a> ·
+  <a href="#pruebas">Pruebas</a>
+</p>
+
+---
 
 Aplicación de escritorio para montar modpacks de Minecraft. Permite buscar mods en CurseForge, guardarlos en un proyecto y preparar un ZIP para importarlo en el lanzador. También tiene un modo de recomendaciones con un modelo de lenguaje que se ejecuta en el propio equipo.
 
