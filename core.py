@@ -100,6 +100,22 @@ def is_running(path):
             continue
     return False
 
+def create_graphics_backup(folder):
+    """Crea una copia única incluso con relojes de baja resolución (Windows)."""
+    base = Path(folder) / ".smapt-backups"
+    base.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    for index in range(1000):
+        name = stamp if index == 0 else f"{stamp}_{index:04d}"
+        result = base / name
+        try:
+            result.mkdir(exist_ok=False)
+            return result
+        except FileExistsError:
+            continue
+    raise RuntimeError("Demasiadas copias creadas en el mismo instante.")
+
+
 def apply_graphics(inst, settings):
     folder=Path(inst["path"]);options=folder/"options.txt"
     if not options.is_file():
@@ -107,8 +123,7 @@ def apply_graphics(inst, settings):
     if is_running(folder):
         raise RuntimeError("Cierra Minecraft antes de modificar sus gráficos.")
     shader=folder/"config/oculus.properties"
-    backup=folder/".smapt-backups"/datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    backup.mkdir(parents=True,exist_ok=False)
+    backup=create_graphics_backup(folder)
     shutil.copy2(options,backup/"options.txt")
     if shader.is_file():
         shutil.copy2(shader,backup/"oculus.properties")
@@ -157,8 +172,7 @@ def restore_graphics(inst):
     if not options.is_file():
         raise ValueError("No se encuentra options.txt en esta instancia.")
     original = folder / "config/oculus.properties"
-    backup = folder / ".smapt-backups" / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    backup.mkdir(parents=True, exist_ok=False)
+    backup = create_graphics_backup(folder)
     shutil.copy2(options, backup / "options.txt")
     if original.is_file():
         shutil.copy2(original, backup / "oculus.properties")

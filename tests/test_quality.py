@@ -34,6 +34,22 @@ class RecoveryTests(unittest.TestCase):
             self.assertIn("renderDistance:8", (Path(undo) / "options.txt").read_text())
             self.assertNotEqual(restored, undo)
 
+    def test_same_timestamp_does_not_overwrite_backup(self):
+        with tempfile.TemporaryDirectory() as td:
+            folder = Path(td)
+            (folder / "options.txt").write_text("renderDistance:20\n")
+            inst = {"name": "Prueba", "path": str(folder)}
+            settings = {"render": 8, "simulation": 6, "fps": 90,
+                        "mode": "Máximos FPS", "shaders": False}
+            with patch("core.datetime") as clock, patch("core.is_running", return_value=False):
+                clock.now.return_value.strftime.return_value = "20261022_120000_000000"
+                first = apply_graphics(inst, settings)
+                restored, second = restore_graphics(inst)
+            self.assertEqual(first, restored)
+            self.assertNotEqual(first, second)
+            self.assertTrue(Path(second, "options.txt").is_file())
+            self.assertIn("renderDistance:20", (folder / "options.txt").read_text())
+
     def test_restore_requires_backup(self):
         with tempfile.TemporaryDirectory() as td:
             inst = {"path": td}
