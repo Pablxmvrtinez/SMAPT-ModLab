@@ -30,9 +30,10 @@ Si todavía no aparece ninguna versión, consulta el [estado de las compilacione
 2. Selecciona arriba la **versión de Minecraft** y el **cargador** (Fabric, Forge o NeoForge).
 3. Busca mods por nombre. También puedes navegar por los resultados populares.
 4. Pulsa **Añadir** en los mods que quieras. Aparecerán en **Mi selección para Modrinth**.
-5. Escribe un nombre para tu modpack y pulsa **Exportar paquete .mrpack**.
-6. ModLab consulta los archivos compatibles y sus dependencias obligatorias; si algo no encaja, te muestra un error y conserva la selección.
-7. Importa el archivo generado en **Modrinth App** o **Prism Launcher** y prueba el juego.
+5. Pulsa **Comprobar selección y dependencias** para revisar las versiones, posibles conflictos declarados y bibliotecas obligatorias sin modificar tu selección.
+6. Escribe un nombre para tu modpack y pulsa **Exportar paquete .mrpack**.
+7. ModLab consulta los archivos compatibles y sus dependencias obligatorias; si algo no encaja, te muestra un error y conserva la selección.
+8. Importa el archivo generado en **Modrinth App** o **Prism Launcher** y prueba el juego.
 
 El `.mrpack` contiene nombres, hashes y URL de descarga de archivos oficiales, **no incluye los JAR**. Al importar el pack, el lanzador obtiene los archivos correspondientes.
 
