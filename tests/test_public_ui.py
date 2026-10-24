@@ -124,6 +124,41 @@ class PublicUITests(unittest.TestCase):
         self.window.version.setCurrentText("1.21.1")
         self.assertEqual(page.loader_version.text(), "")
 
+    def test_verify_saved_mrpack_shows_report_without_changing_selection(self):
+        page = self.window.public_page
+        page.add_mod(self.example)
+        with patch("public_page.QFileDialog.getOpenFileName",
+                   return_value=("/tmp/existing.mrpack", "")), \
+             patch("public_page.validate_exported_mrpack", return_value={
+                 "mods": 2, "minecraft": "1.20.1", "loader": "fabric-loader"
+             }) as checker, \
+             patch("public_page.QMessageBox.information") as show:
+            page.verify_saved_pack()
+            self.wait()
+        checker.assert_called_once_with("/tmp/existing.mrpack")
+        self.assertIn("2", show.call_args.args[2])
+        self.assertIn("fabric-loader", show.call_args.args[2])
+        self.assertEqual(len(page.pack), 1)
+
+    def test_verify_saved_mrpack_reports_invalid_archive(self):
+        page = self.window.public_page
+        with patch("public_page.QFileDialog.getOpenFileName",
+                   return_value=("/tmp/invalid.mrpack", "")), \
+             patch("public_page.validate_exported_mrpack",
+                   side_effect=ValueError("El ZIP no es válido")), \
+             patch.object(self.window, "failure") as failure:
+            page.verify_saved_pack()
+            self.wait()
+        self.assertIn("ZIP", failure.call_args.args[0])
+
+    def test_verify_saved_mrpack_cancelled_does_not_start_task(self):
+        page = self.window.public_page
+        with patch("public_page.QFileDialog.getOpenFileName",
+                   return_value=("", "")), \
+             patch("public_page.validate_exported_mrpack") as checker:
+            page.verify_saved_pack()
+        checker.assert_not_called()
+
     def test_save_and_reload_public_selection(self):
         page = self.window.public_page
         page.add_mod(self.example)

@@ -39,6 +39,8 @@ El `.mrpack` contiene nombres, hashes y URL de descarga de archivos oficiales, *
 
 **Validación antes de guardar:** ModLab revisa automáticamente la estructura del ZIP, las rutas, los hashes, los enlaces oficiales y los entornos cliente/servidor antes de reemplazar un archivo existente. Si la validación falla, el pack anterior se conserva.
 
+Desde la pestaña **Mods públicos** puedes pulsar **Verificar archivo .mrpack guardado** para revisar una exportación anterior. El resultado indica el número de mods, la versión de Minecraft y el cargador; el archivo original no se modifica.
+
 También puedes validar un archivo exportado previamente desde la terminal (Python 3.12 y las dependencias instaladas):
 
 ~~~bash
