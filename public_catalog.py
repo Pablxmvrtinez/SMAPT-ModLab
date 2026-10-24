@@ -155,6 +155,27 @@ class PublicCatalog:
         return list(finished.values())
 
 
+def audit_public_pack(mods, minecraft, loader, progress=lambda message: None, catalog=None):
+    """Comprueba versiones, conflictos y dependencias sin modificar la selección."""
+    if not mods:
+        raise PublicCatalogError("Añade al menos un mod antes de comprobar el pack.")
+    resolved = (catalog or PublicCatalog()).resolve(mods, minecraft, loader, progress)
+    selected_ids = {str(mod["project_id"]) for mod in mods}
+    additional = sorted(
+        (mod for mod in resolved if str(mod["project_id"]) not in selected_ids),
+        key=lambda mod: mod["title"].casefold(),
+    )
+    return {
+        "selected": len(selected_ids),
+        "total": len(resolved),
+        "dependencies": [
+            {"project_id": mod["project_id"], "title": mod["title"],
+             "version": mod.get("version_number", "")}
+            for mod in additional
+        ],
+    }
+
+
 def export_mrpack(destination, name, minecraft, loader, loader_version, mods,
                   catalog=None, progress=lambda message: None):
     if loader not in PACK_LOADERS or not re.fullmatch(r"[A-Za-z0-9.+_-]{1,60}", loader_version):
