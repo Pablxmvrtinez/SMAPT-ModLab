@@ -33,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "PySide6>=6.6,<7" "requests>=2.31,<3" "psutil>=5.9,<8"
       - name: Comprobar sintaxis
-        run: python -m compileall -q app.py core.py curseforge.py intelligence.py local_ai.py modpack.py visual_widgets.py public_page.py public_catalog.py
+        run: python -m compileall -q app.py core.py curseforge.py intelligence.py local_ai.py modpack.py visual_widgets.py public_page.py public_catalog.py mrpack_validator.py scripts/validate_mrpack.py
       - name: Ejecutar pruebas de lógica e interfaz
         env:
           QT_QPA_PLATFORM: offscreen

@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT))
 
 from modpack import resolve_loader_version
 from public_catalog import PublicCatalog, audit_public_pack, export_mrpack
+from mrpack_validator import validate_exported_mrpack
 
 
 def check(condition, message):
@@ -122,7 +123,9 @@ def main():
                            minecraft, loader, build, selected, catalog=catalog)
     files = validate_archive(args.output, minecraft, build, versions,
                              report["total"])
-    check(result["mods"] == len(files), "El exportador devolvió un total erróneo.")
+    validation = validate_exported_mrpack(args.output, expected_count=len(files))
+    check(result["mods"] == validation["mods"] == len(files),
+          "El exportador y los validadores no coinciden.")
     print("PRUEBA REAL SUPERADA:", len(files), "mod(s).")
     print("Archivo:", args.output.resolve())
     print("No se han descargado archivos JAR ni iniciado Minecraft.")

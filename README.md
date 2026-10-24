@@ -37,6 +37,17 @@ Si todavía no aparece ninguna versión, consulta el [estado de las compilacione
 
 El `.mrpack` contiene nombres, hashes y URL de descarga de archivos oficiales, **no incluye los JAR**. Al importar el pack, el lanzador obtiene los archivos correspondientes.
 
+**Validación antes de guardar:** ModLab revisa automáticamente la estructura del ZIP, las rutas, los hashes, los enlaces oficiales y los entornos cliente/servidor antes de reemplazar un archivo existente. Si la validación falla, el pack anterior se conserva.
+
+También puedes validar un archivo exportado previamente desde la terminal (Python 3.12 y las dependencias instaladas):
+
+~~~bash
+python scripts/validate_mrpack.py /ruta/al/archivo.mrpack
+~~~
+
+El validador examina únicamente el formato reducido que genera ModLab; no es un validador universal de todos los `.mrpack`. No descarga los mods ni garantiza que arranquen en el juego.
+
+
 Los archivos exportados también incluyen el entorno de instalación indicado por Modrinth (cliente, servidor dedicado u opcional cuando corresponde). Los mods destinados exclusivamente a servidores dedicados no se marcan como instalables en el cliente. Si el catálogo indica dependencias obligatorias circulares, se detiene la exportación para evitar generar un pack inconsistente.
 
 Si lo quieres retomar más tarde, usa **Guardar selección**. El botón **Abrir selección** recupera ese proyecto en formato JSON, incluyendo la versión de Minecraft, el cargador y la versión manual del cargador si la habías indicado. Al cambiar de versión o cargador manualmente, se borra el número de build anterior para evitar exportar una combinación equivocada.
