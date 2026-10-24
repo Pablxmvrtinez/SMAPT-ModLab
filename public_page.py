@@ -137,6 +137,7 @@ class PublicPage(QWidget):
         self.audit.setEnabled(bool(self.pack))
 
     def target_changed(self):
+        self.loader_version.clear()
         self.loaded = False
         self.results = []
         self.grid.show_mods([])
@@ -166,6 +167,7 @@ class PublicPage(QWidget):
             "schema": 1, "source": "modrinth", "name": self.pack_name.text(),
             "minecraft": self.host.version.currentText().strip(),
             "loader": self.host.loader.currentText(),
+            "loader_version": self.loader_version.text().strip(),
             "mods": [{"source": "modrinth", "project_id": x["project_id"],
                       "title": x["title"], "slug": x.get("slug", ""),
                       "description": x.get("description", ""), "logo": x.get("logo", ""),
@@ -193,6 +195,17 @@ class PublicPage(QWidget):
                     or data.get("schema") != 1 or not isinstance(data.get("mods"), list)
                     or len(data["mods"]) > 300):
                 raise ValueError("Formato de proyecto incorrecto.")
+            minecraft = data.get("minecraft")
+            loader = data.get("loader")
+            manual_version = data.get("loader_version", "")
+            if (not isinstance(minecraft, str)
+                    or not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", minecraft)
+                    or len(minecraft) > 30
+                    or loader not in ("Forge", "Fabric", "NeoForge")
+                    or not isinstance(manual_version, str)
+                    or len(manual_version) > 60
+                    or (manual_version and not re.fullmatch(r"[A-Za-z0-9.+_-]+", manual_version))):
+                raise ValueError("Versión de Minecraft o cargador no válido.")
             entries = {}
             for item in data["mods"]:
                 if (not isinstance(item, dict) or item.get("source") != "modrinth"
@@ -206,10 +219,16 @@ class PublicPage(QWidget):
                     "logo": "", "screenshots": [], "downloads": 0,
                     "categories": []
                 }
+            # La validación termina antes de cambiar la selección y la configuración.
+            # Los cambios de versión disparan target_changed(), por eso se aplican
+            # antes de sustituir self.pack por el proyecto cargado.
+            self.host.version.setCurrentText(minecraft)
+            self.host.loader.setCurrentText(loader)
+            self.loader_version.setText(manual_version)
             self.pack = entries
             self.pack_name.setText(str(data.get("name", "Mi modpack"))[:120])
             self.refresh()
-            self.host.status.setText("Selección abierta. Se comprobarán los mods al exportar.")
+            self.host.status.setText("Selección abierta con su versión y cargador. Se comprobarán los mods al exportar.")
         except (ValueError, OSError, TypeError) as exc:
             self.host.failure("No se pudo abrir la selección: " + str(exc))
 
