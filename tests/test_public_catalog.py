@@ -6,7 +6,7 @@ import json
 import tempfile
 import unittest
 
-from public_catalog import PublicCatalog, PublicCatalogError, export_mrpack, preferred_file
+from public_catalog import PublicCatalog, PublicCatalogError, export_mrpack, preferred_file, audit_public_pack
 
 
 def entry(pid="abc", name="Sodium"):
