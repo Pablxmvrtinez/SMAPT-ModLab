@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from visual_widgets import CardGrid
 from modpack import resolve_loader_version
 from public_catalog import PublicCatalog, export_mrpack, audit_public_pack
+from mrpack_validator import validate_exported_mrpack
 
 
 class PublicPage(QWidget):
@@ -94,6 +95,9 @@ class PublicPage(QWidget):
         self.export.setObjectName("primary")
         self.export.clicked.connect(self.export_pack)
         layout.addWidget(self.export)
+        self.verify_archive = QPushButton("Verificar archivo .mrpack guardado")
+        self.verify_archive.clicked.connect(self.verify_saved_pack)
+        layout.addWidget(self.verify_archive)
         self.refresh()
 
     def search_mods(self, *_, offset=0):
@@ -265,6 +269,31 @@ class PublicPage(QWidget):
             )
 
         self.host.run_task(task, ready)
+
+    def verify_saved_pack(self):
+        """Revisa un .mrpack existente sin modificarlo ni extraer archivos."""
+        if self.host.busy:
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Verificar un .mrpack exportado", "",
+            "Paquetes Modrinth (*.mrpack)")
+        if not path:
+            return
+
+        def ready(report):
+            QMessageBox.information(
+                self, "Archivo .mrpack válido",
+                f"Mods: {report['mods']}\n"
+                f"Minecraft: {report['minecraft']}\n"
+                f"Cargador: {report['loader']}\n\n"
+                "El archivo supera las comprobaciones del exportador. "
+                "Para verificar el funcionamiento real debes importarlo "
+                "en Prism Launcher o Modrinth App e iniciar Minecraft."
+            )
+
+        self.host.run_task(
+            lambda progress: validate_exported_mrpack(path), ready
+        )
 
     def export_pack(self):
         if self.host.busy or not self.pack:
