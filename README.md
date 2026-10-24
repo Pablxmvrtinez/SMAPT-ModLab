@@ -128,6 +128,17 @@ QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
 
 En Windows elimina el prefijo de variable de entorno. El proceso de CI comprueba Linux y Windows; las pruebas simuladas no sustituyen un test funcional de los mods reales en Minecraft.
 
+### Prueba con datos reales de Modrinth
+
+La comprobación de integración obtiene una versión auténtica de Fabric API para Minecraft 1.20.1, resuelve sus dependencias, consulta la versión del cargador Fabric y exporta un `.mrpack`. Después revisa el ZIP, las rutas, los hashes, las URLs y la correspondencia con el archivo original del catálogo, **sin descargar JAR ni arrancar Minecraft**.
+
+~~~bash
+python scripts/modrinth_live_smoke.py --output artifacts/modrinth-smoke.mrpack
+~~~
+
+El workflow [Modrinth - prueba real de exportación](.github/workflows/modrinth-live-smoke.yml) ejecuta este proceso y guarda un `.mrpack` como artefacto durante 7 días si la prueba termina correctamente. Necesita conexión a Internet; los problemas de red o de disponibilidad del catálogo hacen fallar la prueba. El archivo generado es **solo una muestra de validación**, no un modpack de producción. La importación en Prism Launcher o Modrinth App y la ejecución del juego siguen necesitando una prueba manual.
+
+
 Los archivos principales son `app.py` (interfaz), `public_page.py` (modo público), `public_catalog.py` (API pública y MRPACK), `curseforge.py` (API con clave), `modpack.py` (ZIP para CurseForge) y `core.py` (detección y gráficos).
 
 ## Créditos y licencias
