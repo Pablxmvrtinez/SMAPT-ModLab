@@ -31,7 +31,7 @@ Si todavía no aparece ninguna versión, consulta el [estado de las compilacione
 3. Busca mods por nombre. También puedes navegar por los resultados populares.
 4. Pulsa **Añadir** en los mods que quieras. Aparecerán en **Mi selección para Modrinth**.
 5. Pulsa **Comprobar selección y dependencias** para revisar las versiones, posibles conflictos declarados y bibliotecas obligatorias sin modificar tu selección.
-6. Escribe un nombre para tu modpack y pulsa **Exportar paquete .mrpack**.
+6. Escribe un nombre para tu modpack y pulsa **Exportar paquete .mrpack**. El buscador prioriza versiones estables compatibles y usa una beta si no encuentra una estable válida.
 7. ModLab consulta los archivos compatibles y sus dependencias obligatorias; si algo no encaja, te muestra un error y conserva la selección.
 8. Importa el archivo generado en **Modrinth App** o **Prism Launcher** y prueba el juego.
 

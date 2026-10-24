@@ -113,6 +113,10 @@ class PublicCatalog:
                             loaders=json.dumps([LOADERS[loader]]),
                             game_versions=json.dumps([minecraft]),
                             include_changelog="false")
+            # Modrinth puede listar betas más recientes que las versiones finales.
+            # Priorizamos releases compatibles, manteniendo el orden del API
+            # dentro de cada tipo; las betas sirven como alternativa.
+            rows = sorted(rows, key=lambda row: row.get("version_type") != "release")
         for row in rows:
             if (str(row.get("project_id")) != pid
                     or minecraft not in row.get("game_versions", [])
