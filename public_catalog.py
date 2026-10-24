@@ -17,6 +17,27 @@ import re
 LOADERS = {"Forge": "forge", "Fabric": "fabric", "NeoForge": "neoforge"}
 PACK_LOADERS = {"Forge": "forge", "Fabric": "fabric-loader", "NeoForge": "neoforge"}
 
+# Side flags follow the .mrpack physical client/dedicated-server specification.
+# "server_only" can also work in singleplayer, so the client is optional.
+ENVIRONMENT_SIDES = {
+    "client_and_server": ("required", "required"),
+    "client_only": ("required", "unsupported"),
+    "client_only_server_optional": ("required", "optional"),
+    "singleplayer_only": ("required", "unsupported"),
+    "server_only": ("optional", "required"),
+    "server_only_client_optional": ("optional", "required"),
+    "dedicated_server_only": ("unsupported", "required"),
+    "client_or_server": ("required", "optional"),
+    "client_or_server_prefers_both": ("required", "required"),
+    "unknown": ("required", "required"),
+}
+
+
+def modpack_sides(environment):
+    """Traduce el entorno de Modrinth a flags de instalacion de un .mrpack."""
+    client, server = ENVIRONMENT_SIDES.get(environment, ("required", "required"))
+    return {"client": client, "server": server}
+
 
 def normalize(hit):
     return {
@@ -122,8 +143,10 @@ class PublicCatalog:
                     raise PublicCatalogError("Versiones incompatibles de una dependencia.")
                 return
             if pid in visiting:
-                return
-            if len(finished) + len(visiting) > 300:
+                raise PublicCatalogError(
+                    "Se han detectado dependencias obligatorias circulares en el pack."
+                )
+            if len(finished) + len(visiting) >= 300:
                 raise PublicCatalogError("Demasiadas dependencias para un solo pack.")
             visiting.add(pid)
             try:
@@ -132,11 +155,14 @@ class PublicCatalog:
                 for dep in version["dependencies"]:
                     project = dep.get("project_id")
                     requested = dep.get("version_id")
+                    dependency_type = dep.get("dependency_type")
+                    if dependency_type not in ("required", "incompatible"):
+                        continue
                     if not project and requested:
                         project = self.get("/version/" + requested).get("project_id")
-                    if dep.get("dependency_type") == "incompatible" and project:
-                        incompatible.add((pid, str(project)))
-                    if dep.get("dependency_type") != "required":
+                    if dependency_type == "incompatible":
+                        if project:
+                            incompatible.add((pid, str(project)))
                         continue
                     if not project:
                         raise PublicCatalogError("Dependencia obligatoria sin proyecto conocido.")
@@ -190,12 +216,11 @@ def export_mrpack(destination, name, minecraft, loader, loader_version, mods,
         if dest in seen:
             raise PublicCatalogError("Dos mods usan el mismo nombre de archivo: " + dest)
         seen.add(dest)
-        env = mod.get("environment") or ""
+        env = modpack_sides(mod.get("environment"))
         files.append({
             "path": dest,
             "hashes": {"sha1": file["hashes"]["sha1"], "sha512": file["hashes"]["sha512"]},
-            "env": {"client": "unsupported" if env in ("server_only", "dedicated_server_only") else "required",
-                    "server": "unsupported" if env in ("client_only", "singleplayer_only") else "required"},
+            "env": env,
             "downloads": [file["url"]], "fileSize": file["size"],
         })
     manifest = {

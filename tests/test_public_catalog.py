@@ -6,7 +6,7 @@ import json
 import tempfile
 import unittest
 
-from public_catalog import PublicCatalog, PublicCatalogError, export_mrpack, preferred_file, audit_public_pack
+from public_catalog import PublicCatalog, PublicCatalogError, export_mrpack, preferred_file, audit_public_pack, modpack_sides
 
 
 def entry(pid="abc", name="Sodium"):
@@ -65,6 +65,83 @@ class PublicCatalogTests(unittest.TestCase):
                        {"id": "def", "title": "Fabric API", "slug": "fabric-api", "categories": []})
         pinned = api.resolve([entry()], "1.20.1", "Fabric")
         self.assertEqual({m["project_id"] for m in pinned}, {"abc", "def"})
+
+    def test_resolves_optional_dependencies_without_fetching_their_version(self):
+        api = PublicCatalog()
+        main = version("abc", [
+            {"dependency_type": "optional", "version_id": "optional_ver", "project_id": None},
+            {"dependency_type": "embedded", "version_id": "embed_ver", "project_id": None},
+        ])
+        api.get = Mock(return_value=[main])
+        resolved = api.resolve([entry()], "1.20.1", "Fabric")
+        self.assertEqual([mod["project_id"] for mod in resolved], ["abc"])
+        self.assertEqual(api.get.call_count, 1)
+
+    def test_rejects_circular_required_dependencies(self):
+        api = PublicCatalog()
+        first = version("abc", [
+            {"dependency_type": "required", "project_id": "def", "version_id": None}
+        ])
+        second = version("def", [
+            {"dependency_type": "required", "project_id": "abc", "version_id": None}
+        ])
+        api.get = Mock(side_effect=lambda path, **kw:
+            [first] if path == "/project/abc/version" else
+            [second] if path == "/project/def/version" else
+            {"id": "def", "title": "Fabric API", "categories": []})
+        with self.assertRaisesRegex(PublicCatalogError, "circulares"):
+            api.resolve([entry()], "1.20.1", "Fabric")
+
+    def test_rejects_incompatible_dependency_version_in_cycle(self):
+        api = PublicCatalog()
+        first = version("abc", [
+            {"dependency_type": "required", "project_id": "def", "version_id": None}
+        ])
+        second = version("def", [
+            {"dependency_type": "required", "project_id": "abc", "version_id": "other"}
+        ])
+        api.get = Mock(side_effect=lambda path, **kw:
+            [first] if path == "/project/abc/version" else
+            [second] if path == "/project/def/version" else
+            {"id": "def", "title": "Fabric API", "categories": []})
+        with self.assertRaises(PublicCatalogError):
+            api.resolve([entry()], "1.20.1", "Fabric")
+
+    def test_all_modrinth_environment_types_map_to_pack_sides(self):
+        expected = {
+            "client_and_server": ("required", "required"),
+            "client_only": ("required", "unsupported"),
+            "client_only_server_optional": ("required", "optional"),
+            "singleplayer_only": ("required", "unsupported"),
+            "server_only": ("optional", "required"),
+            "server_only_client_optional": ("optional", "required"),
+            "dedicated_server_only": ("unsupported", "required"),
+            "client_or_server": ("required", "optional"),
+            "client_or_server_prefers_both": ("required", "required"),
+            "unknown": ("required", "required"),
+        }
+        for environment, (client, server) in expected.items():
+            with self.subTest(environment=environment):
+                self.assertEqual(modpack_sides(environment),
+                                 {"client": client, "server": server})
+        self.assertEqual(modpack_sides(None),
+                         {"client": "required", "server": "required"})
+
+    def test_export_preserves_optional_server_environment(self):
+        api = Mock()
+        api.resolve.return_value = [{
+            "project_id": "abc", "title": "Sodium",
+            "environment": "client_only_server_optional",
+            "file": version()["files"][0]
+        }]
+        with tempfile.TemporaryDirectory() as td:
+            dest = Path(td) / "environment.mrpack"
+            export_mrpack(dest, "Test", "1.20.1", "Fabric", "0.16.10",
+                          [entry()], api)
+            with ZipFile(dest) as archive:
+                manifest = json.loads(archive.read("modrinth.index.json"))
+            self.assertEqual(manifest["files"][0]["env"],
+                             {"client": "required", "server": "optional"})
 
     def test_preflight_lists_only_automatically_added_dependencies(self):
         api = Mock()
