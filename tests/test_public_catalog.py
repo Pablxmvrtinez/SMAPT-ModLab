@@ -48,6 +48,40 @@ class PublicCatalogTests(unittest.TestCase):
         self.assertEqual(chosen["file"]["filename"], "sodium.jar")
         self.assertEqual(chosen["version_id"], "vers_abc")
 
+    def test_prefers_stable_release_over_newer_beta(self):
+        api = PublicCatalog()
+        beta = dict(version(), id="new_beta", version_type="beta",
+                    version_number="2.0-beta")
+        stable = dict(version(), id="older_release", version_type="release",
+                      version_number="1.9")
+        api.get = Mock(return_value=[beta, stable])
+        chosen = api.version(entry(), "1.20.1", "Fabric")
+        self.assertEqual(chosen["version_id"], "older_release")
+
+    def test_uses_beta_when_no_compatible_release_exists(self):
+        api = PublicCatalog()
+        beta = dict(version(), id="beta_only", version_type="beta")
+        api.get = Mock(return_value=[beta])
+        self.assertEqual(api.version(entry(), "1.20.1", "Fabric")["version_id"],
+                         "beta_only")
+
+    def test_falls_back_to_beta_if_release_has_no_verifiable_jar(self):
+        api = PublicCatalog()
+        stable = dict(version(), id="invalid_release", files=[])
+        beta = dict(version(), id="valid_beta", version_type="beta")
+        api.get = Mock(return_value=[stable, beta])
+        self.assertEqual(api.version(entry(), "1.20.1", "Fabric")["version_id"],
+                         "valid_beta")
+
+    def test_explicit_pinned_beta_remains_available(self):
+        api = PublicCatalog()
+        beta = dict(version(), id="specific_beta", version_type="beta")
+        api.get = Mock(return_value=beta)
+        selected = api.version(entry(), "1.20.1", "Fabric",
+                               selected_version="specific_beta")
+        self.assertEqual(selected["version_id"], "specific_beta")
+        api.get.assert_called_once_with("/version/specific_beta")
+
     def test_rejects_untrusted_file_urls(self):
         value = version()["files"][0]
         for url in ("http://cdn.modrinth.com/file.jar", "https://evil.example/file.jar"):
