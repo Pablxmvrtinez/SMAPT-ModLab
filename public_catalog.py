@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from zipfile import ZipFile, ZIP_DEFLATED
 from tempfile import TemporaryDirectory
 import re
+from mrpack_validator import MrpackValidationError, validate_exported_mrpack
 
 LOADERS = {"Forge": "forge", "Fabric": "fabric", "NeoForge": "neoforge"}
 PACK_LOADERS = {"Forge": "forge", "Fabric": "fabric-loader", "NeoForge": "neoforge"}
@@ -235,5 +236,9 @@ def export_mrpack(destination, name, minecraft, loader, loader_version, mods,
         archive = Path(temp) / "export.mrpack"
         with ZipFile(archive, "w", ZIP_DEFLATED) as zipfile:
             zipfile.writestr("modrinth.index.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+        try:
+            validate_exported_mrpack(archive, expected_count=len(pinned))
+        except MrpackValidationError as exc:
+            raise PublicCatalogError("No se pudo validar el paquete generado: " + str(exc)) from exc
         archive.replace(output)
     return {"path": str(output), "mods": len(pinned)}
