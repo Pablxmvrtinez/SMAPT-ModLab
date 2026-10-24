@@ -58,6 +58,20 @@ class PublicUITests(unittest.TestCase):
         self.assertEqual(len(page.pack), 1)
         self.assertFalse(page.loaded)
 
+    def test_public_preflight_reports_dependencies_without_changing_selection(self):
+        page = self.window.public_page
+        page.add_mod(self.example)
+        with patch("public_page.audit_public_pack", return_value={
+            "selected": 1, "total": 2,
+            "dependencies": [{"project_id": "fabric-api", "title": "Fabric API", "version": "0.1"}],
+        }) as audit, patch("public_page.QMessageBox.information") as dialog:
+            page.check_pack()
+            self.wait()
+        audit.assert_called_once()
+        self.assertEqual(len(page.pack), 1)
+        self.assertIn("Fabric API", dialog.call_args.args[2])
+        self.assertTrue(page.audit.isEnabled())
+
     def test_save_and_reload_public_selection(self):
         page = self.window.public_page
         page.add_mod(self.example)
