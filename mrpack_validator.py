@@ -20,6 +20,22 @@ HEX40 = re.compile(r"[0-9a-f]{40}\Z")
 HEX128 = re.compile(r"[0-9a-f]{128}\Z")
 SAFE_PATH = re.compile(r"mods/[^/\\\x00-\x1f]+\.jar\Z", re.IGNORECASE)
 MAX_MANIFEST_BYTES = 10_000_000
+RESERVED_WINDOWS_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+FORBIDDEN_WINDOWS_CHARS = set('<>:"|?*')
+
+
+def safe_mod_filename(filename):
+    """No genera rutas que Windows o Linux interpreten de forma distinta."""
+    if not isinstance(filename, str) or len(filename) > 255:
+        return False
+    if filename.strip() != filename or any(c in filename for c in FORBIDDEN_WINDOWS_CHARS):
+        return False
+    stem = filename.split(".", 1)[0].upper()
+    return stem not in RESERVED_WINDOWS_NAMES
 
 
 def _ensure(ok, message):
@@ -83,7 +99,8 @@ def validate_exported_mrpack(path, expected_count=None):
                 f"La entrada de mod {index} no es válida.")
         name = item.get("path")
         _ensure(isinstance(name, str) and SAFE_PATH.fullmatch(name)
-                and name.rsplit("/", 1)[1] not in (".jar", "..jar"),
+                and name.rsplit("/", 1)[1] not in (".jar", "..jar")
+                and safe_mod_filename(name.rsplit("/", 1)[1]),
                 f"Ruta de mod no válida en la entrada {index}.")
         key = name.casefold()
         _ensure(key not in seen,
