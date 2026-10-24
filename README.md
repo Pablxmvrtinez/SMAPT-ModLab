@@ -130,7 +130,7 @@ En Windows elimina el prefijo de variable de entorno. El proceso de CI comprueba
 
 ### Prueba con datos reales de Modrinth
 
-La comprobación de integración obtiene una versión auténtica de Fabric API para Minecraft 1.20.1, resuelve sus dependencias, consulta la versión del cargador Fabric y exporta un `.mrpack`. Después revisa el ZIP, las rutas, los hashes, las URLs y la correspondencia con el archivo original del catálogo, **sin descargar JAR ni arrancar Minecraft**.
+La comprobación de integración obtiene versiones auténticas de Fabric API y Sodium para Minecraft 1.20.1, resuelve sus dependencias, consulta la versión del cargador Fabric y exporta un `.mrpack`. Después revisa el ZIP, las rutas, los hashes, las URLs y la correspondencia con el archivo original del catálogo, **sin descargar JAR ni arrancar Minecraft**.
 
 ~~~bash
 python scripts/modrinth_live_smoke.py --output artifacts/modrinth-smoke.mrpack
