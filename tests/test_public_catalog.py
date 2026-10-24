@@ -66,6 +66,26 @@ class PublicCatalogTests(unittest.TestCase):
         pinned = api.resolve([entry()], "1.20.1", "Fabric")
         self.assertEqual({m["project_id"] for m in pinned}, {"abc", "def"})
 
+    def test_preflight_lists_only_automatically_added_dependencies(self):
+        api = Mock()
+        selected = entry("abc", "Sodium")
+        api.resolve.return_value = [
+            {"project_id": "abc", "title": "Sodium"},
+            {"project_id": "xyz", "title": "Z Library", "version_number": "2"},
+            {"project_id": "def", "title": "Fabric API", "version_number": "1"},
+        ]
+        report = audit_public_pack([selected], "1.20.1", "Fabric", catalog=api)
+        self.assertEqual(report["selected"], 1)
+        self.assertEqual(report["total"], 3)
+        self.assertEqual([d["title"] for d in report["dependencies"]],
+                         ["Fabric API", "Z Library"])
+        self.assertEqual(selected["title"], "Sodium")
+        api.resolve.assert_called_once()
+
+    def test_preflight_rejects_empty_selection(self):
+        with self.assertRaises(PublicCatalogError):
+            audit_public_pack([], "1.20.1", "Fabric", catalog=Mock())
+
     def test_exports_importable_mrpack_without_jar_downloads(self):
         api = Mock()
         api.resolve.return_value = [{
