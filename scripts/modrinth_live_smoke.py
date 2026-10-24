@@ -25,7 +25,7 @@ def check(condition, message):
         raise RuntimeError(message)
 
 
-def validate_archive(path, minecraft, loader_version, selected_version, total):
+def validate_archive(path, minecraft, loader_version, selected_versions, total):
     """Valida el ZIP y compara el mod principal con los metadatos originales."""
     with ZipFile(path) as archive:
         check(archive.namelist() == ["modrinth.index.json"],
@@ -41,9 +41,13 @@ def validate_archive(path, minecraft, loader_version, selected_version, total):
     check(isinstance(files, list) and len(files) == total and total > 0,
           "La cantidad de mods del manifiesto no coincide con el análisis.")
     paths = set()
-    expected = selected_version["file"]
-    expected_path = "mods/" + expected["filename"]
-    selected_found = False
+    expected_files = {
+        "mods/" + mod_version["file"]["filename"]: mod_version
+        for mod_version in selected_versions
+    }
+    check(len(expected_files) == len(selected_versions),
+          "Los mods seleccionados usan el mismo nombre de archivo.")
+    selected_found = set()
     for item in files:
         destination = item.get("path", "")
         check(isinstance(destination, str) and destination.startswith("mods/")
@@ -70,13 +74,19 @@ def validate_archive(path, minecraft, loader_version, selected_version, total):
               and all(side in ("required", "optional", "unsupported")
                       for side in environment.values()),
               "Entorno cliente/servidor incorrecto.")
-        if destination == expected_path:
-            selected_found = True
+        if destination in expected_files:
+            expected_version = expected_files[destination]
+            expected = expected_version["file"]
+            selected_found.add(destination)
             check(hashes == expected["hashes"]
                   and item["fileSize"] == expected["size"]
                   and urls == [expected["url"]],
-                  "El mod principal no coincide con los metadatos reales de Modrinth.")
-    check(selected_found, "El mod seleccionado no está en el .mrpack.")
+                  "Un mod seleccionado no coincide con Modrinth.")
+            if expected_version["title"] == "Sodium":
+                check(environment["server"] == "unsupported",
+                      "Sodium debe estar marcado como mod solo de cliente.")
+    check(selected_found == set(expected_files),
+          "Faltan mods seleccionados en el .mrpack.")
     return files
 
 
@@ -88,14 +98,20 @@ def main():
     minecraft, loader = "1.20.1", "Fabric"
     catalog = PublicCatalog()
 
-    print("Consultando la ficha real de Fabric API en Modrinth...", flush=True)
-    mod = catalog.project("fabric-api")
-    check(mod["project_id"], "Modrinth no devolvió un ID de proyecto.")
-    version = catalog.version(mod, minecraft, loader)
-    print("Versión real:", version["version_number"], flush=True)
+    print("Consultando Fabric API y Sodium en Modrinth...", flush=True)
+    selected = [catalog.project("fabric-api"), catalog.project("sodium")]
+    check(all(mod["project_id"] for mod in selected)
+          and selected[0]["project_id"] != selected[1]["project_id"],
+          "Modrinth no devolvió dos proyectos diferentes.")
+    versions = [catalog.version(mod, minecraft, loader) for mod in selected]
+    for mod, version in zip(selected, versions):
+        version["title"] = mod["title"]
+        print("Versión real de " + mod["title"] + ":",
+              version["version_number"], flush=True)
 
-    report = audit_public_pack([mod], minecraft, loader, catalog=catalog)
-    check(report["selected"] == 1 and report["total"] >= 1,
+    report = audit_public_pack(selected, minecraft, loader, catalog=catalog)
+    check(report["selected"] == len(selected)
+          and report["total"] >= len(selected),
           "Auditoría pública inconsistente.")
     print("Dependencias obligatorias adicionales:",
           len(report["dependencies"]), flush=True)
@@ -103,8 +119,8 @@ def main():
     print("Fabric Loader verificado:", build, flush=True)
 
     result = export_mrpack(args.output, "SMAPT Modrinth Smoke Test",
-                           minecraft, loader, build, [mod], catalog=catalog)
-    files = validate_archive(args.output, minecraft, build, version,
+                           minecraft, loader, build, selected, catalog=catalog)
+    files = validate_archive(args.output, minecraft, build, versions,
                              report["total"])
     check(result["mods"] == len(files), "El exportador devolvió un total erróneo.")
     print("PRUEBA REAL SUPERADA:", len(files), "mod(s).")
