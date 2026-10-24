@@ -72,6 +72,58 @@ class PublicUITests(unittest.TestCase):
         self.assertIn("Fabric API", dialog.call_args.args[2])
         self.assertTrue(page.audit.isEnabled())
 
+    def test_reopen_restores_saved_minecraft_loader_and_manual_version(self):
+        page = self.window.public_page
+        self.window.version.setCurrentText("1.21.1")
+        self.window.loader.setCurrentText("Fabric")
+        page.loader_version.setText("0.16.10")
+        page.add_mod(self.example)
+        with tempfile.TemporaryDirectory() as td:
+            file = Path(td) / "project.json"
+            with patch("public_page.QFileDialog.getSaveFileName",
+                       return_value=(str(file), "")):
+                page.save()
+            data = json.loads(file.read_text(encoding="utf-8"))
+            self.assertEqual(data["minecraft"], "1.21.1")
+            self.assertEqual(data["loader"], "Fabric")
+            self.assertEqual(data["loader_version"], "0.16.10")
+            self.window.version.setCurrentText("1.20.1")
+            self.window.loader.setCurrentText("Forge")
+            page.pack = {}
+            with patch("public_page.QFileDialog.getOpenFileName",
+                       return_value=(str(file), "")):
+                page.open()
+        self.assertEqual(self.window.version.currentText(), "1.21.1")
+        self.assertEqual(self.window.loader.currentText(), "Fabric")
+        self.assertEqual(page.loader_version.text(), "0.16.10")
+        self.assertIn("abc123", page.pack)
+
+    def test_reopen_invalid_config_preserves_active_selection(self):
+        page = self.window.public_page
+        page.add_mod(self.example)
+        initial_version = self.window.version.currentText()
+        initial_loader = self.window.loader.currentText()
+        invalid = {
+            "schema": 1, "source": "modrinth", "name": "Invalido",
+            "minecraft": "../bad", "loader": "Fabric", "mods": [],
+        }
+        with tempfile.TemporaryDirectory() as td:
+            file = Path(td) / "bad.json"
+            file.write_text(json.dumps(invalid), encoding="utf-8")
+            with patch("public_page.QFileDialog.getOpenFileName",
+                       return_value=(str(file), "")), patch.object(self.window, "failure") as failure:
+                page.open()
+        failure.assert_called_once()
+        self.assertEqual(self.window.version.currentText(), initial_version)
+        self.assertEqual(self.window.loader.currentText(), initial_loader)
+        self.assertIn("abc123", page.pack)
+
+    def test_changing_minecraft_clears_old_manual_loader_build(self):
+        page = self.window.public_page
+        page.loader_version.setText("0.16.10")
+        self.window.version.setCurrentText("1.21.1")
+        self.assertEqual(page.loader_version.text(), "")
+
     def test_save_and_reload_public_selection(self):
         page = self.window.public_page
         page.add_mod(self.example)
