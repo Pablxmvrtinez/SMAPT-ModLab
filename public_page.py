@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QFileDialog, QMessageBox)
 from visual_widgets import CardGrid
 from modpack import resolve_loader_version
-from public_catalog import PublicCatalog, export_mrpack
+from public_catalog import PublicCatalog, export_mrpack, audit_public_pack
 
 
 class PublicPage(QWidget):
@@ -87,6 +87,9 @@ class PublicPage(QWidget):
         row.addWidget(self.pack_name)
         row.addWidget(self.loader_version)
         layout.addLayout(row)
+        self.audit = QPushButton("Comprobar selección y dependencias")
+        self.audit.clicked.connect(self.check_pack)
+        layout.addWidget(self.audit)
         self.export = QPushButton("Exportar paquete .mrpack para Modrinth / Prism")
         self.export.setObjectName("primary")
         self.export.clicked.connect(self.export_pack)
@@ -131,6 +134,7 @@ class PublicPage(QWidget):
             self.selected.addItem(row)
         self.grid.update_pack(self.pack)
         self.export.setEnabled(bool(self.pack))
+        self.audit.setEnabled(bool(self.pack))
 
     def target_changed(self):
         self.loaded = False
@@ -208,6 +212,40 @@ class PublicPage(QWidget):
             self.host.status.setText("Selección abierta. Se comprobarán los mods al exportar.")
         except (ValueError, OSError, TypeError) as exc:
             self.host.failure("No se pudo abrir la selección: " + str(exc))
+
+    def check_pack(self):
+        if self.host.busy or not self.pack:
+            return
+        mc = self.host.version.currentText().strip()
+        loader = self.host.loader.currentText()
+        mods = list(self.pack.values())
+
+        def task(progress):
+            return audit_public_pack(mods, mc, loader, progress, self.catalog)
+
+        def ready(data):
+            dependencies = data["dependencies"]
+            if dependencies:
+                details = "\n".join(
+                    "• " + mod["title"] + " (" + mod["version"] + ")"
+                    for mod in dependencies[:15]
+                )
+                remaining = len(dependencies) - 15
+                if remaining:
+                    details += f"\n… y {remaining} dependencias más."
+                details = "Dependencias obligatorias adicionales:\n" + details
+            else:
+                details = "No se han detectado dependencias obligatorias adicionales."
+            QMessageBox.information(
+                self, "Comprobación del modpack",
+                f"Mods seleccionados: {data['selected']}\n"
+                f"Total con dependencias: {data['total']}\n\n"
+                + details
+                + "\n\nSe han validado las versiones y los conflictos declarados "
+                  "por Modrinth. La compatibilidad real se confirma al iniciar Minecraft."
+            )
+
+        self.host.run_task(task, ready)
 
     def export_pack(self):
         if self.host.busy or not self.pack:
