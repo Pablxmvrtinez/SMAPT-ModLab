@@ -74,6 +74,24 @@ class ValidateMrpackTests(unittest.TestCase):
                 invalid["files"][0]["path"] = path
                 self.assert_invalid(invalid)
 
+    def test_rejects_filenames_not_portable_to_windows(self):
+        for filename in (
+            "CON.jar", "con.jar", "NUL.jar", "PRN.txt.jar",
+            "COM1.jar", "LPT9.jar", "name:bad.jar",
+            "name?bad.jar", "name*bad.jar", "name|bad.jar",
+            " name.jar", "name .jar"
+        ):
+            with self.subTest(filename=filename):
+                payload = manifest()
+                payload["files"][0]["path"] = "mods/" + filename
+                if filename == "name .jar":
+                    # Un espacio antes de la extensión sí está permitido
+                    # en Windows; la ruta no termina en espacio.
+                    archive(self.target, payload)
+                    validate_exported_mrpack(self.target)
+                else:
+                    self.assert_invalid(payload)
+
     def test_rejects_case_insensitive_duplicate_filenames(self):
         invalid = manifest()
         another = copy.deepcopy(invalid["files"][0])

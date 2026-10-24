@@ -37,7 +37,7 @@ Si todavía no aparece ninguna versión, consulta el [estado de las compilacione
 
 El `.mrpack` contiene nombres, hashes y URL de descarga de archivos oficiales, **no incluye los JAR**. Al importar el pack, el lanzador obtiene los archivos correspondientes.
 
-**Validación antes de guardar:** ModLab revisa automáticamente la estructura del ZIP, las rutas, los hashes, los enlaces oficiales y los entornos cliente/servidor antes de reemplazar un archivo existente. Si la validación falla, el pack anterior se conserva.
+**Validación antes de guardar:** ModLab revisa automáticamente la estructura del ZIP, las rutas (incluyendo nombres válidos en Windows y Linux), los hashes, los enlaces oficiales y los entornos cliente/servidor antes de reemplazar un archivo existente. Si la validación falla, el pack anterior se conserva.
 
 Desde la pestaña **Mods públicos** puedes pulsar **Verificar archivo .mrpack guardado** para revisar una exportación anterior. El resultado indica el número de mods, la versión de Minecraft y el cargador; el archivo original no se modifica.
 
