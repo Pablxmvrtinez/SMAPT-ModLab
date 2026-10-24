@@ -37,7 +37,7 @@ Si todavía no aparece ninguna versión, consulta el [estado de las compilacione
 
 El `.mrpack` contiene nombres, hashes y URL de descarga de archivos oficiales, **no incluye los JAR**. Al importar el pack, el lanzador obtiene los archivos correspondientes.
 
-Si lo quieres retomar más tarde, usa **Guardar selección**. El botón **Abrir selección** recupera ese proyecto en formato JSON.
+Si lo quieres retomar más tarde, usa **Guardar selección**. El botón **Abrir selección** recupera ese proyecto en formato JSON, incluyendo la versión de Minecraft, el cargador y la versión manual del cargador si la habías indicado. Al cambiar de versión o cargador manualmente, se borra el número de build anterior para evitar exportar una combinación equivocada.
 
 ### ¿Y CurseForge?
 
