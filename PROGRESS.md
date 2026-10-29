@@ -1,7 +1,13 @@
 # Progreso de S.M.A.P.T. ModLab 2.0
 
 Registro de trabajo para poder retomar la tarea si la sesión se interrumpe.
-Rama: `main` (solo commits locales; nada publicado en remoto).
+Rama remota: `modlab-2.0` (este trabajo). **`origin/main` tiene 17 commits que este trabajo no incluye**
+(Modrinth público: `public_catalog.py`, `public_page.py`, `mrpack_validator.py`, nombres seguros en Windows,
+CI de Windows, guías). La copia local partió de `b324b86`, anterior a ellos.
+
+**Siguiente paso obligatorio:** integrar `origin/main` en `modlab-2.0` conservando sus funciones
+(validación de `.mrpack`, nombres válidos en Windows, smoke de Modrinth en vivo, preferencia de versiones estables)
+dentro de la nueva estructura `modlab/`, y después abrir un PR hacia `main`.
 
 ## Fase 1 · Inspección (completada)
 
