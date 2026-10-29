@@ -25,7 +25,7 @@ CASES = [
     ('zombi', 'Quiero un Minecraft ambientado en un apocalipsis zombi. Me gustaría explorar ciudades abandonadas, utilizar '
               'armas de fuego y construir bases para sobrevivir. No quiero que sea excesivamente difícil.',
      [r'zombi|apocalyp|undead|outbreak', r'gun|firearm|weapon|rifle|pistol', r'city|cities|urban|ruin|abandon|town',
-      r'base|build|shelter|bunker|fort|defen'], [], [], {'difficulty': ('baja', 'moderada'), 'no_exclusions': True}),
+      r'base|build|shelter|bunker|fort|defen'], [], [], {'no_exclusions': True, 'limits': r'dific|hard|extrem|desafi'}),
     ('rpg', 'Quiero algo parecido a un RPG de fantasía con progresión de personaje, jefes y mazmorras, pero sin tecnología '
             'industrial.',
      [r'rpg|level|skill|class|progress|attribute|stat', r'boss', r'dungeon'], [r'tecnolog|industri|machine|tech|máquin'],
@@ -37,16 +37,15 @@ CASES = [
      [r'horror|scary|creep|fear|terror|dread|spooky', r'explor|structure|cave|dungeon|biome|ruin'], [r'zombi'], [r'zombi'], {}),
     ('magia', 'Quiero magia y dragones, pero nada de máquinas.',
      [r'magic|spell|wizard|sorcer|mana|arcane', r'dragon'], [r'machine|máquin|tech|industr|mecan|automat'],
-     [r'machine|tech|industr|automation|factory'], {}),
+     [r'machine|tech|industr|automation|factory'], {'performance': ('equilibrado',)}),
     ('pokemon', 'Quiero un Minecraft parecido a Pokémon',
      [r'pok[eé]mon|cobblemon|pixelmon|creature|monster|catch|captur|tam'], [], [], {'no_exclusions': True}),
     ('fps', 'Quiero mejorar FPS sin cambiar la experiencia original.',
      [r'perform|fps|optimi|memory|render|lag'], [], [r'boss|dungeon|magic|furniture|weapon|biome|dragon|mob'],
-     {'performance': ('prioridad',), 'only': r'perform|fps|optimi|memory|render|lag|entity|chunk|light|startup|load|sodium|lithium|'
-                                             r'ferrite|culling|smooth|cpu|gpu|frame|optifine|stabil|tuning|speed|efficien|fast'}),
+     {'performance': ('prioridad',)}),
     ('medieval', 'Quiero un mundo medieval con reinos, aldeas y guerras.',
      [r'medieval|castle|kingdom|knight', r'village|town|settlement', r'war|battle|army|siege|faction|soldier|conquest'], [], [],
-     {'no_exclusions': True}),
+     {'no_exclusions': True, 'performance': ('equilibrado',)}),
     ('tranquilo', 'Quiero algo tranquilo con mascotas, muebles y agricultura.',
      [r'pet|companion|animal|tame', r'furniture|decor', r'farm|crop|agricult|harvest|garden'], [],
      [r'boss|dungeon|horde|invasion|monster|zombie'], {}),

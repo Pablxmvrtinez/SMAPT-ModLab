@@ -94,7 +94,7 @@ class FakeAI:
 
 def brief(**extra):
     value = {'analysis': 'Quiere supervivencia zombi urbana con armas, sin magia.', 'summary': 'Apocalipsis zombi.',
-             'setting': 'Ciudades en ruinas', 'difficulty': 'moderada', 'combat': 'Moderado', 'performance_priority': False,
+             'setting': 'Ciudades en ruinas', 'difficulty': 'moderada', 'combat': 'Moderado', 'performance_quote': '',
              'requirements': [
                  {'name': 'Armas de fuego', 'detail': 'Disparar', 'priority': 'obligatorio',
                   'queries': ['guns', 'firearms', 'magic guns'], 'examples': ['Gun Mod X'], 'categories': ['adventure', 'Inventada']},
@@ -162,10 +162,27 @@ class InterpretationTests(unittest.TestCase):
         with self.assertRaises(CatalogError):
             validate_brief(dict(brief(), requirements=[{'name': 'x', 'queries': [], 'examples': []}]), 'texto')
 
-    def test_low_end_pc_sets_performance(self):
-        value, _ = ModpackDesigner(FakeCatalog(RESULTS), FakeAI(dict(brief(), performance_priority=True), SCORES)).interpret(request())
+    def test_performance_needs_the_players_words(self):
+        pc = request(description='Quiero construir casas tranquilamente y tengo un ordenador poco potente.')
+        value, _ = ModpackDesigner(FakeCatalog(RESULTS), FakeAI(dict(brief(), performance_quote='ordenador poco potente'), SCORES)).interpret(pc)
         self.assertEqual(value['performance'], 'prioridad')
         self.assertEqual(value['requirements'][-1]['name'], 'Rendimiento')
+        value, _ = ModpackDesigner(FakeCatalog(RESULTS), FakeAI(dict(brief(), performance_quote='PC modesto'), SCORES)).interpret(request())
+        self.assertEqual(value['performance'], 'equilibrado')  # la cita no está en la descripción
+        medieval = request(description='Quiero un mundo medieval con reinos, aldeas y guerras.')
+        value, _ = ModpackDesigner(FakeCatalog(RESULTS), FakeAI(dict(brief(), performance_quote='un mundo medieval'), SCORES)).interpret(medieval)
+        self.assertEqual(value['performance'], 'equilibrado')  # la cita existe, pero no habla del rendimiento
+
+    def test_village_searches_are_not_performance(self):
+        from modlab.intelligence import _is_performance
+        self.assertFalse(_is_performance({'queries': ['villages and towns', 'flagship', 'memorial']}))
+        self.assertTrue(_is_performance({'queries': ['fps optimization']}))
+        self.assertTrue(_is_performance({'queries': ['reduce lag']}))
+
+    def test_examples_are_filtered_like_queries(self):
+        raw = dict(brief(), requirements=[{'name': 'Paz', 'detail': '', 'priority': 'obligatorio', 'queries': ['peaceful'],
+                                           'examples': ['No Combat', 'Magic Builder', 'Peaceful World']}])
+        self.assertEqual(validate_brief(raw, request().description)['requirements'][0]['examples'], ['Peaceful World'])
 
     def test_performance_preference_adds_requirement(self):
         ai = FakeAI(brief(), SCORES)
