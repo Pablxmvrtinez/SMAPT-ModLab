@@ -11,12 +11,13 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
     QScrollArea,QGridLayout,QListWidget,QListWidgetItem,QDialog,QFormLayout,QDialogButtonBox,
     QGroupBox,QTableWidget,QTableWidgetItem,QHeaderView,QAbstractItemView,QMessageBox,QFileDialog,
     QProgressBar,QSplitter)
-from curseforge import CurseForgeClient,Connection,CatalogError,connection_from_environment
-from intelligence import ExperienceDesigner,plan_text
-from local_ai import LocalAI
-from modpack import build_pack,resolve_loader_version,audit_pack
-from core import hardware,instances,recommend,apply_graphics,save_plan
-from visual_widgets import Images,Artwork,CardGrid,Cover,LABELS
+from modlab.errors import CatalogError
+from modlab.sources import CurseForgeClient,Connection,plain_text
+from modlab.intelligence import ExperienceDesigner,plan_text
+from modlab.local_ai import LocalAI
+from modlab.modpack import build_pack,resolve_loader_version,audit_pack
+from modlab.core import hardware,instances,recommend,apply_graphics
+from modlab.ui.widgets import Images,Artwork,CardGrid,Cover,LABELS
 
 STYLE="""
 QWidget { background: #0d0f15; color: #e8eaf1; font-family: Inter, 'Noto Sans', sans-serif; font-size: 12px; }
@@ -427,7 +428,7 @@ class ModLab(QMainWindow):
         add=QPushButton('+ Añadir al pack');add.setObjectName('primary');add.setEnabled(mod['project_id'] not in self.pack)
         add.clicked.connect(lambda:(dialog.accept(),self.add_mod(mod)));actions.addWidget(add);close=QPushButton('Cerrar');close.clicked.connect(dialog.accept);actions.addWidget(close);v.addLayout(actions)
         def ready(description):
-            text.setPlainText((('POR QUÉ ENCAJA\n'+mod['reason']+'\n'+mod.get('caveat','')+'\n\n') if mod.get('reason') else '')+description)
+            text.setPlainText((('POR QUÉ ENCAJA\n'+mod['reason']+'\n'+mod.get('caveat','')+'\n\n') if mod.get('reason') else '')+plain_text(description['text']))
         self.run_task(lambda progress:self.catalog.description(mod['project_id']),ready);dialog.exec()
 
     def change_target(self,*_):
@@ -479,7 +480,9 @@ class ModLab(QMainWindow):
                 if len(added)>40:lines.append(f'… y {len(added)-40} dependencias más.')
             else:
                 lines.append('No hay dependencias obligatorias adicionales.')
-            lines.extend(['','Sin incompatibilidades declaradas en los archivos comprobados.',
+            lines.extend(['']+[f"Sin archivo compatible: {m['title']}" for m in result['missing']]+[f'Incompatibilidad declarada: {a} ↔ {b}' for a,b in result['conflicts']])
+            if not result['conflicts']:lines.append('Sin incompatibilidades declaradas en los archivos comprobados.')
+            lines.extend([
                           'Esto no garantiza que Minecraft arranque ni que no haya conflictos sin declarar.'])
             QMessageBox.information(self,'Comprobación del modpack','\n'.join(lines))
             self.status.setText(f"Comprobación completada: {result['total']} mods, {len(added)} dependencias nuevas.")

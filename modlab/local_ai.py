@@ -1,17 +1,17 @@
 """Modelo de lenguaje local incluido en el paquete. No usa servicios ni agentes."""
-from pathlib import Path
 from threading import RLock
 from contextlib import contextmanager
 import json
 import os
 
-from curseforge import CatalogError
+from modlab import paths
+from modlab.errors import CatalogError
 
 MODEL_FILE='Qwen3-4B-Instruct-2507-Q4_K_M.gguf'
 
 
 def model_path():
-    return Path(__file__).resolve().parent/'assets/models'/MODEL_FILE
+    return paths.resource_root()/'assets/models'/MODEL_FILE
 
 
 class LocalAI:

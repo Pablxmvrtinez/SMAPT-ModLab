@@ -9,8 +9,8 @@ import unittest
 from unittest.mock import Mock,patch
 from PySide6.QtWidgets import QApplication
 from app import ModLab,THEMES
-from curseforge import normalize
-from test_curseforge import raw_mod
+from modlab.sources.curseforge import normalize
+from fakes import raw_mod
 
 
 class DesignUITests(unittest.TestCase):
@@ -86,7 +86,7 @@ class DesignUITests(unittest.TestCase):
         self.window.add_mod(self.mods[0]);self.wait()
         with patch('app.audit_pack',return_value={
             'selected':1,'total':2,
-            'dependencies':[{'project_id':2,'title':'Biblioteca','version':'1.0'}],
+            'dependencies':[{'project_id':2,'title':'Biblioteca','version':'1.0'}],'missing':[],'conflicts':[],
         }) as audit, patch('app.QMessageBox.information') as info:
             self.window.check_pack();self.wait()
         audit.assert_called_once()

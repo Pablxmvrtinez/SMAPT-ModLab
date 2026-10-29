@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from core import hardware, instances, recommend, apply_graphics, read_json, save_plan
+from modlab.core import hardware, instances, recommend, apply_graphics, read_json, save_plan
 
 class CoreTests(unittest.TestCase):
     def test_hardware(self):
@@ -35,7 +35,7 @@ class CoreTests(unittest.TestCase):
             (pack / "config/oculus.properties").write_text("enableShaders=true\nshaderPack=pack.zip\n")
             inst = {"path": str(pack), "name": "Test"}
             settings = recommend(283, {"ram_gb":32, "vram_gb":8})
-            with patch("core.is_running", return_value=False):
+            with patch("modlab.core.is_running", return_value=False):
                 path = Path(apply_graphics(inst, settings))
             self.assertTrue((path/"options.txt").exists())
             self.assertIn("renderDistance:16", (path/"options.txt").read_text())
@@ -54,7 +54,7 @@ class CoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             pack = Path(td)
             (pack/"options.txt").write_text("renderDistance:12\n")
-            with patch("core.is_running", return_value=True):
+            with patch("modlab.core.is_running", return_value=True):
                 with self.assertRaises(RuntimeError):
                     apply_graphics({"path":str(pack)}, recommend(80,{"ram_gb":32,"vram_gb":8}))
             self.assertEqual((pack/"options.txt").read_text(), "renderDistance:12\n")

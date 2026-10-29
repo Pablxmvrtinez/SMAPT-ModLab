@@ -35,7 +35,16 @@ tarea en segundo plano a la vez y la interfaz entera en `app.py`.
 ## Fases
 
 - [x] Fase 1 · Inspección
-- [ ] Fase 2 · CurseForge completo (+ Modrinth, descargas, `.mrpack`)
+- [x] Fase 2 · CurseForge completo (+ Modrinth, descargas, `.mrpack`)
+  - Paquete `modlab/` (fuentes, HTTP, proyecto, exportación, descargas, registro).
+  - CurseForge: lotes `POST /v1/mods` y `/v1/mods/files`, índice `latestFilesIndexes`, versiones,
+    dependencias tipadas, betas con permiso explícito, `download-url`, respeto de `allowModDistribution`,
+    errores 401/403/404/429/5xx diferenciados, reintentos, sin caché (§3.1).
+  - Modrinth: búsqueda con facetas, categorías, versiones, dependencias (también por versión), caché en disco.
+  - Exportación `.mrpack` (hashes SHA-1/SHA-512, `env`, dominios admitidos) y ZIP de CurseForge con autor/versión.
+  - Descargas con verificación de hash, escritura atómica y dominios permitidos.
+  - Pasarela: rutas nuevas de solo lectura, POST por lotes validados, `no-store`, `/health`, límite configurable.
+  - `scripts/check_live.py`: Modrinth verificado en vivo (búsqueda, filtros, deps Iris→Sodium, `.mrpack`, descarga).
 - [ ] Fase 3 · Interfaz nueva
 - [ ] Fase 4 · Refactorización y rendimiento
 - [ ] Fase 5 · Funciones restantes y errores
