@@ -25,7 +25,7 @@ def splash_pixmap():
     p.setBrush(gradient)
     p.setPen(QColor('#2b3346'))
     p.drawRoundedRect(QRectF(0.5, 0.5, 559, 299), 18, 18)
-    p.drawPixmap(40, 52, icons.pixmap('cube', '#e3466e', 56, 1.0, 2.0))
+    p.drawPixmap(40, 50, icons.brand_pixmap(60))
     p.setPen(QColor('#ffffff'))
     p.setFont(QFont('Sans Serif', 30, QFont.Weight.Black))
     p.drawText(116, 92, 'S.M.A.P.T.')
@@ -52,8 +52,25 @@ def verify_ai():
     return 0
 
 
+def install_excepthook():
+    """Un error inesperado en la interfaz se registra y se avisa, sin cerrar la aplicación."""
+    log = logs.get('app')
+
+    def hook(kind, value, trace):
+        if issubclass(kind, KeyboardInterrupt):
+            sys.__excepthook__(kind, value, trace)
+            return
+        log.error('Error no controlado', exc_info=(kind, value, trace))
+        app = QApplication.instance()
+        window = getattr(app, 'main_window', None) if app else None
+        if window is not None:
+            window.toast('Error inesperado', 'Se guardaron los detalles en el registro de ModLab.', 'error', 7000)
+    sys.excepthook = hook
+
+
 def main():
     log_file = logs.setup()
+    install_excepthook()
     if '--verify-ai' in sys.argv:
         return verify_ai()
     QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
@@ -73,6 +90,7 @@ def main():
     from modlab.ui.window import ModLab
     logs.get('app').info('ModLab %s iniciado (registro en %s)', __version__, log_file)
     win = ModLab()
+    app.main_window = win
     win.show()
     splash.finish(win)
     if '--smoke' in sys.argv:

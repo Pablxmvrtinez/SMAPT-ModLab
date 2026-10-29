@@ -5,6 +5,8 @@ from PySide6.QtCore import QByteArray, QRectF, Qt
 from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
+from modlab import paths
+
 PATHS = {
     'home': '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
     'sparkles': '<path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
@@ -104,3 +106,19 @@ def icon(name, color='#b4bcd0', size=18, active=None):
             result.addPixmap(pixmap(name, active, size, ratio), QIcon.Mode.Active, QIcon.State.On)
         result.addPixmap(pixmap(name, '#5b6479', size, ratio), QIcon.Mode.Disabled, QIcon.State.Off)
     return result
+
+
+def brand_pixmap(size, ratio=1.0):
+    """Logotipo de ModLab (assets/icon.svg); si falta, un icono genérico."""
+    path = paths.resource_root() / 'assets/icon.svg'
+    if not path.is_file():
+        return pixmap('cube', '#e3466e', size, ratio)
+    scaled = max(1, round(size * ratio))
+    image = QPixmap(scaled, scaled)
+    image.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    QSvgRenderer(str(path)).render(painter, QRectF(0, 0, scaled, scaled))
+    painter.end()
+    image.setDevicePixelRatio(ratio)
+    return image

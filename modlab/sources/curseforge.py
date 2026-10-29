@@ -11,7 +11,7 @@ import os
 
 from modlab import logs, paths
 from modlab.errors import AuthError, CatalogError, NotFoundError
-from modlab.http import ApiClient
+from modlab.http import ApiClient, session
 from modlab.sources.base import CatalogSource, mod_key, plain_text
 
 log = logs.get('curseforge')
@@ -111,7 +111,8 @@ class CurseForgeClient(CatalogSource):
 
     def __init__(self, connection=None, http=None):
         self.connection = connection or connection_from_environment()
-        self.http = http
+        # Una sola sesión reutiliza conexiones HTTPS entre consultas (y entre hilos: el pool es seguro).
+        self.http = http or session()
 
     def available(self):
         return bool(self.connection.mode)

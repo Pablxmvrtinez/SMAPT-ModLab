@@ -56,7 +56,15 @@ tarea en segundo plano a la vez y la interfaz entera en `app.py`.
   - Mi equipo, Optimizar (con restaurar copia) y Ajustes (conexión, caché, registros, IA).
   - Pantalla de carga (splash) y barra de actividad con progreso real y cancelación.
   - Tareas con QThreadPool: varias a la vez, la búsqueda nueva sustituye a la anterior.
-- [ ] Fase 4 · Refactorización y rendimiento
+- [x] Fase 4 · Refactorización y rendimiento
+  - Caché de imágenes por presupuesto de bytes (96 MB) y escalado a la densidad real de pantalla.
+  - Decodificación de imágenes en hilos de trabajo (QImage), sin bloquear la interfaz.
+  - Sesión HTTP compartida por cliente (antes CurseForge abría una conexión nueva por consulta).
+  - Gancho global de excepciones: se registra y se avisa sin cerrar la app.
+  - Ajustes guardados al cambiar versión/cargador; logotipo real (assets/icon.svg) en barra lateral, splash y ejecutable.
+  - requirements-lite.txt (sin IA) + requirements.txt (completa); build_portable.py con `--lite` e iconos generados.
+  - CI: `tests.yml` (Linux y Windows, Python 3.11/3.12) en cada push/PR; `portable.yml` con edición ligera/completa.
+  - Medido (datos reales de Modrinth): ventana visible 0,30 s; 50 tarjetas 0,35 s; 273 MB tras 6 páginas; CPU en reposo 0,7 %.
 - [ ] Fase 5 · Funciones restantes y errores
 - [ ] Fase 6 · Pruebas, compilación y documentación
 

@@ -2,10 +2,11 @@
 import json
 from pathlib import Path
 import sys
+import tempfile
 from time import monotonic
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from local_ai import LocalAI
-from intelligence import PLAN_PROMPT,PLAN_SCHEMA,RANK_PROMPT,RANK_SCHEMA
+from modlab.local_ai import LocalAI
+from modlab.intelligence import PLAN_PROMPT,PLAN_SCHEMA,RANK_PROMPT,RANK_SCHEMA
 
 CASES=[
  ('chill','Quiero un modpack tranquilo para un PC malillo, construir y pelear con algún jefe que otro pero no mucho más.'),
@@ -48,7 +49,8 @@ def main():
         assert not {40,50,60}&selected,result
         reports.append({'case':'curation','result':result})
         print(json.dumps(reports[-1],ensure_ascii=False),flush=True)
-    Path('/tmp/smapt-ai-report.json').write_text(json.dumps(reports,ensure_ascii=False,indent=2))
-    print('Evaluación real completada.',flush=True)
+    report=Path(tempfile.gettempdir())/'smapt-ai-report.json'
+    report.write_text(json.dumps(reports,ensure_ascii=False,indent=2),encoding='utf-8')
+    print('Evaluación real completada:',report,flush=True)
 
 if __name__=='__main__':main()

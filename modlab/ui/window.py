@@ -109,7 +109,7 @@ class ModLab(QMainWindow):
         v.setSpacing(4)
         brand = QHBoxLayout()
         logo = QLabel()
-        logo.setPixmap(icons.pixmap('cube', COLORS['accent'], 30, 2.0, 2.2))
+        logo.setPixmap(icons.brand_pixmap(34, self.devicePixelRatioF()))
         brand.addWidget(logo)
         self.brand_text = QWidget()
         text = QVBoxLayout(self.brand_text)
@@ -274,6 +274,7 @@ class ModLab(QMainWindow):
             return
         if self.pack.set_target(version, loader):
             self.settings['minecraft'], self.settings['loader'] = version, loader
+            self.settings.save()
             self.adding.clear()
             self.target_changed.emit()
             self.pack_changed.emit()
