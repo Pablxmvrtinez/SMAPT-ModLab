@@ -42,6 +42,16 @@ def cache_dir():
     return base / ORGANIZATION / APP_NAME
 
 
+def data_dir():
+    """Datos grandes que el usuario descarga (por ejemplo, el modelo de IA)."""
+    if sys.platform == 'win32':
+        return _windows_base('LOCALAPPDATA', 'AppData/Local') / ORGANIZATION / APP_NAME / 'data'
+    if sys.platform == 'darwin':
+        return Path.home() / 'Library/Application Support' / APP_NAME
+    base = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
+    return base / ORGANIZATION / APP_NAME
+
+
 def log_dir():
     if sys.platform == 'win32':
         return _windows_base('LOCALAPPDATA', 'AppData/Local') / ORGANIZATION / APP_NAME / 'logs'

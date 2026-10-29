@@ -21,6 +21,10 @@ class FakeResponse:
             import requests
             raise requests.HTTPError(str(self.status_code))
 
+    @property
+    def content(self):
+        return self.body
+
     def iter_content(self, size):
         for start in range(0, len(self.body), size):
             yield self.body[start:start + size]

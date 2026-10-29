@@ -221,7 +221,10 @@ class Shimmer(QVariantAnimation):
     def detach(cls, *_):
         cls.users = max(0, cls.users - 1)
         if not cls.users and cls.instance is not None:
-            cls.instance.stop()
+            try:
+                cls.instance.stop()
+            except RuntimeError:
+                cls.instance = None  # Qt ya destruyó la animación al cerrar la aplicación.
 
 
 class SkeletonCard(QFrame):
@@ -580,9 +583,10 @@ class Logo(QWidget):
 class ModCard(QFrame):
     toggled = Signal(object)
     details = Signal(object)
+    discarded = Signal(object)
     HEIGHT = 356
 
-    def __init__(self, mod, images, state='add', parent=None):
+    def __init__(self, mod, images, state='add', parent=None, discardable=False):
         super().__init__(parent)
         self.mod = mod
         self.setObjectName('modCard')
@@ -603,6 +607,12 @@ class ModCard(QFrame):
         badge.adjustSize()
         badge.move(12, 12)
         badge.raise_()
+        self.discard = None
+        if discardable:
+            self.discard = tool('x', 'Descartar esta propuesta', kind='ghost', size=14)
+            self.discard.setParent(self)
+            self.discard.setStyleSheet('QToolButton { background: rgba(10,12,18,170); border-radius: 8px; padding: 4px; }')
+            self.discard.clicked.connect(lambda: self.discarded.emit(self.mod))
         body = QVBoxLayout()
         body.setContentsMargins(14, 8, 14, 0)
         body.setSpacing(6)
@@ -658,6 +668,10 @@ class ModCard(QFrame):
         super().resizeEvent(event)
         self.logo.move(14, self.cover.height() - 22)
         self.logo.raise_()
+        if self.discard is not None:
+            self.discard.adjustSize()
+            self.discard.move(self.width() - self.discard.width() - 10, 10)
+            self.discard.raise_()
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self.rect().contains(event.position().toPoint()):
@@ -669,6 +683,7 @@ class CardGrid(QScrollArea):
     """Rejilla adaptable: el número de columnas depende del ancho disponible."""
     toggled = Signal(object)
     details = Signal(object)
+    discarded = Signal(object)
     MIN_WIDTH = 250
 
     def __init__(self, images, parent=None):
@@ -698,12 +713,13 @@ class CardGrid(QScrollArea):
         self.reflow()
         self.verticalScrollBar().setValue(0)
 
-    def show_mods(self, mods, state_of=lambda mod: 'add'):
+    def show_mods(self, mods, state_of=lambda mod: 'add', discardable=False):
         cards = []
         for mod in mods:
-            item = ModCard(mod, self.images, state_of(mod))
+            item = ModCard(mod, self.images, state_of(mod), discardable=discardable)
             item.toggled.connect(self.toggled.emit)
             item.details.connect(self.details.emit)
+            item.discarded.connect(self.discarded.emit)
             cards.append(item)
         self._replace(cards)
 

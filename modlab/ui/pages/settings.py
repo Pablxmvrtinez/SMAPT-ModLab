@@ -1,10 +1,9 @@
 """Ajustes: conexión de catálogos, preferencias, datos locales, IA y acerca de."""
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
 
-from modlab import __version__, logs, paths
-from modlab.local_ai import model_path
+from modlab import __version__, ai_setup, logs, paths
 from modlab.sources import Connection, CurseForgeClient
 from modlab.ui.pages import scroll_page
 from modlab.ui.widgets import Badge, button, card, label
@@ -114,6 +113,9 @@ class SettingsPage(QWidget):
         ai_layout.addLayout(head)
         self.ai_text = label('', 'muted', wrap=True)
         ai_layout.addWidget(self.ai_text)
+        configure = button('Configurar IA', 'settings')
+        configure.clicked.connect(self.configure_ai)
+        ai_layout.addWidget(configure, 0, Qt.AlignmentFlag.AlignLeft)
         v.addWidget(ai)
 
         about, about_layout = card(spacing=6)
@@ -149,12 +151,15 @@ class SettingsPage(QWidget):
         size = self.win.images.disk_size() + self.win.catalogs.modrinth.cache_size()
         self.cache_label.setText(f'Caché de Modrinth e imágenes: {size / 1024 / 1024:.1f} MB en {paths.cache_dir()}. '
                                  'Las respuestas de CurseForge no se guardan (términos de su API).')
-        available = self.win.ai.available()
-        self.ai_badge.set('Disponible' if available else 'No instalada', 'success' if available else 'warning')
-        self.ai_text.setText('Modelo Qwen3-4B-Instruct-2507 (Q4_K_M) ejecutado en este equipo con llama.cpp. Necesita unos '
-                             '5,5 GB de RAM libre mientras trabaja.' if available else
-                             f'Falta el modelo ({model_path().name}) o la biblioteca llama-cpp-python. La edición completa '
-                             'los incluye; desde el código: pip install -r requirements.txt y python scripts/fetch_model.py.')
+        info = ai_setup.status()
+        self.ai_badge.set('Disponible' if info['ready'] else 'No instalada', 'success' if info['ready'] else 'warning')
+        self.ai_text.setText(ai_setup.describe(info) + ' Qwen3-4B-Instruct-2507 (Q4_K_M) en llama.cpp, dentro de tu equipo; '
+                             'necesita unos 5,5 GB de RAM libre mientras trabaja. En «Configurar IA» puedes descargar el '
+                             'modelo con verificación SHA-256 y probarlo.')
+
+    def configure_ai(self):
+        self.win.navigate('ai')
+        self.win.pages['ai'].show_setup()
 
     def save_gateway(self):
         url = self.gateway.text().strip().rstrip('/')

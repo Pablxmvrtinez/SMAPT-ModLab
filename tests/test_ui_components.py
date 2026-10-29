@@ -100,14 +100,18 @@ class ControlTests(unittest.TestCase):
         self.assertEqual(seen, ['cre'])
 
     def test_shimmer_stops_without_skeletons(self):
-        card = SkeletonCard()
-        self.assertEqual(Shimmer.instance.state(), Shimmer.State.Running)
-        card.deleteLater()
         from PySide6.QtCore import QCoreApplication, QEvent
         QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        before = Shimmer.users
+        card = SkeletonCard()
+        self.assertEqual(Shimmer.users, before + 1)
+        self.assertEqual(Shimmer.instance.state(), Shimmer.State.Running)
+        card.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
         self.qt.processEvents()
-        self.assertEqual(Shimmer.users, 0)
-        self.assertNotEqual(Shimmer.instance.state(), Shimmer.State.Running)
+        self.assertEqual(Shimmer.users, before)
+        if before == 0:
+            self.assertNotEqual(Shimmer.instance.state(), Shimmer.State.Running)
 
 
 if __name__ == '__main__':

@@ -89,9 +89,25 @@ paquete con `SMAPT_CATALOG_URL=https://tu-servidor`. **Publícala solo si tu aut
 
 ### ¿Y la IA?
 
-**Crear con IA** es opcional: describes cómo quieres jugar y un modelo local (Qwen3-4B en llama.cpp, sin servicios
-externos) propone mods del catálogo que elijas, **Modrinth o CurseForge**, explicando cada motivo. Necesita la edición con
-IA o instalar `requirements-ai.txt` y el modelo; requiere unos 5,5 GB de RAM libre mientras trabaja.
+**Crear con IA** entiende descripciones libres en español («quiero sobrevivir en un apocalipsis zombi explorando
+ciudades, con armas de fuego y bases, sin que sea muy difícil») y trabaja con mods **reales** del catálogo que elijas,
+Modrinth (sin clave) o CurseForge:
+
+1. **Interpreta** la descripción con un modelo local (Qwen3-4B en llama.cpp): requisitos obligatorios y opcionales,
+   búsquedas que el propio modelo escribe para cada idea (sin lista fija de palabras), mods conocidos solo como pistas
+   de búsqueda, lo que rechazas («sin zombis», «nada de máquinas»), dificultad y rendimiento.
+2. **Busca** cada idea en el catálogo con tu versión y cargador, descarta las fichas con temas rechazados y las
+   bibliotecas, y prioriza las que cubren más requisitos.
+3. **Evalúa** las mejores fichas con el modelo: encaje, requisito que cubren, función y un motivo concreto.
+4. **Recomendar mods** muestra tarjetas con imagen y motivo para añadir o descartar una a una.
+   **Crear modpack** elige una combinación equilibrada sin funciones repetidas, comprueba archivos compatibles,
+   resuelve dependencias, sustituye los mods incompatibles por alternativas y muestra una vista previa editable que
+   puedes llevar a Mi modpack o exportar (`.mrpack` o ZIP de CurseForge).
+
+La IA no inventa mods ni IDs: todo sale del catálogo y se verifica antes de exportar. Una propuesta no garantiza que
+Minecraft arranque; pruébala en una instancia aparte. En CPU, una propuesta tarda de 2 a 6 minutos según el número de
+mods (la barra muestra cada fase). **Configurar IA** (en Crear con IA o Ajustes) muestra los requisitos, descarga el
+modelo de 2,5 GB con verificación SHA-256 y reanudación, instala el motor desde el código y prueba que responde.
 
 ## Instalar desde el código
 
@@ -164,6 +180,8 @@ QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
 QT_QPA_PLATFORM=offscreen python app.py --smoke
 python scripts/check_live.py                                     # catálogos reales
 python scripts/modrinth_live_smoke.py --output artifacts/modrinth-smoke.mrpack
+python scripts/evaluate_ai.py                                    # comprensión semántica con el modelo real
+python scripts/ai_e2e.py                                         # IA real + Modrinth → .mrpack validado
 ~~~
 
 Las pruebas unitarias simulan la red y cubren catálogos, dependencias, validación `.mrpack`, descargas, proyectos,

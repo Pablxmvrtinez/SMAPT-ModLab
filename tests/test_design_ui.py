@@ -9,7 +9,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from PySide6.QtCore import QCoreApplication, QEvent
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from modlab.errors import CatalogError
 from modlab.settings import Settings
@@ -208,20 +209,83 @@ class DesignUITests(unittest.TestCase):
         self.assertFalse(len(self.window.pack))
         self.assertIn('Sin archivo estable', toast.call_args.args[1])
 
-    def test_ai_without_model_is_explicit(self):
+    def ai_result(self, mode='recommend'):
+        brief = {'analysis': 'Quiere construir tranquilo.', 'summary': 'Construcción tranquila', 'setting': '',
+                 'difficulty': 'baja', 'combat': 'Sin combates extra', 'performance': 'prioridad',
+                 'requirements': [{'name': 'Construcción', 'detail': 'Casas', 'priority': 'obligatorio', 'queries': ['building'],
+                                   'examples': [], 'categories': []}],
+                 'exclusions': [{'concept': 'Combate', 'terms': ['boss'], 'categories': []}], 'assumptions': []}
+        mods = [dict(self.cf.mods_list[i], file_id=900 + i, version_number='1.0', reason='Encaja con construir.',
+                     role=f'rol {i}', requirement='Construcción') for i in (1, 2)]
+        return {'mode': mode, 'brief': brief, 'mods': mods, 'dependencies': [dict(self.cf.mods_list[5], version_number='2.0')],
+                'rejected': [{'title': 'Boss Mod', 'reason': 'Incluye «Combate», que pediste evitar.'}],
+                'stats': {'found': 30, 'evaluated': 20, 'unevaluated': 0, 'seconds': 12.0, 'tokens_per_second': 9},
+                'coverage': [{'requirement': 'Construcción', 'priority': 'obligatorio', 'mods': [m['title'] for m in mods]}],
+                'warnings': ['Aviso']}
+
+    def run_ai(self, mode):
+        page = self.window.pages['ai']
+        page.mode.set_current(mode, emit=True)
+        page.prompt.setPlainText('Quiero construir casas tranquilamente sin combates.')
+        result = self.ai_result(mode)
+
+        def fake_run(designer, request, progress, check):
+            from modlab.intelligence import BRIEF_EVENT
+            progress('Interpretando descripción…', 0.05)
+            progress(BRIEF_EVENT + json.dumps(result['brief']), 0.2)
+            progress('Evaluando compatibilidad · lote 1 de 1', 0.5)
+            self.seen_request = request
+            return result
+        with patch.object(page.setup, 'ready', return_value=True), \
+                patch('modlab.ui.pages.ai.ModpackDesigner.run', fake_run):
+            page._update_status()
+            page.start()
+            self.wait()
+        return page
+
+    def test_ai_without_engine_shows_setup_instead_of_guessing(self):
         self.wait()
-        with patch.object(self.window, 'toast') as toast:
-            self.window.pages['ai'].propose()
-        self.assertIn('IA local', toast.call_args.args[0])
+        page = self.window.pages['ai']
+        page.prompt.setPlainText('Quiero un apocalipsis zombi con armas.')
+        with patch.object(page.setup, 'ready', return_value=False), patch.object(self.window, 'toast') as toast:
+            page.start()
+        self.assertIs(page.stack.currentWidget(), page.setup)
+        self.assertIn('IA', toast.call_args.args[0])
         self.assertNotIn('ai', self.window.runner.keys)
 
-    def test_add_proposal_joins_existing_manual_pack(self):
+    def test_ai_recommendations_show_brief_cards_and_discard(self):
+        page = self.run_ai('recommend')
+        self.assertEqual(self.seen_request.mode, 'recommend')
+        self.assertEqual((self.seen_request.minecraft, self.seen_request.loader), self.window.target())
+        self.assertFalse(page.brief_card.isHidden())
+        texts = ' '.join(w.text() for w in page.brief_card.findChildren(type(page.summary)))
+        self.assertIn('Sin combate', texts)
+        self.assertEqual(len(page.grid.cards), 2)
+        page.discard(page.grid.cards[0].mod)
+        self.assertEqual(len(page.grid.cards), 1)
+        self.assertIn('Descartados (2)', page.rejected_button.text())
+        page.add_all_mods()
+        self.assertEqual(len(self.window.pack), 1)
+
+    def test_ai_modpack_preview_can_be_edited_and_used(self):
         self.window.toggle_mod(self.cf.mods_list[0])
         self.wait()
-        ai = self.window.pages['ai']
-        ai.proposal = [dict(self.cf.mods_list[1], file_id=200, minecraft='1.20.1', loader='Forge')]
-        ai.add_proposal()
-        self.assertEqual(self.window.pack.keys(), {'curseforge:1', 'curseforge:2'})
+        page = self.run_ai('create')
+        self.assertIs(page.results_stack.currentWidget(), page.preview)
+        first = page.tree.topLevelItem(0).child(0)
+        first.setCheckState(0, Qt.CheckState.Unchecked)
+        self.assertEqual(len(page.preview_selection()), 1)
+        with patch('modlab.ui.pages.ai.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
+            page.use_preview(export=False)
+        self.assertEqual(self.window.pack.keys(), {'curseforge:3'})
+        self.assertIn('construir', self.window.pack.description)
+        self.assertIs(self.window.stack.currentWidget(), self.window.pages['pack'])
+
+    def test_stepper_follows_real_stages(self):
+        from modlab.ui.pages.ai import step_of
+        self.assertEqual([step_of(m) for m in ('Interpretando descripción · x', 'Buscando mods · 3/9',
+                                               'Evaluando compatibilidad · lote 1', 'Preparando modpack · x', 'otro')],
+                         [0, 1, 2, 3, None])
 
     def test_reopening_project_preserves_reviewed_file_id(self):
         mod = dict(self.cf.mods_list[0], file_id=12345)

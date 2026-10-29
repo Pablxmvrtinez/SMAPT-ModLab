@@ -280,6 +280,14 @@ class ModLab(QMainWindow):
                 self.toast('Versión cambiada', f'El pack conserva sus {len(self.pack)} mods; los archivos se verificarán '
                            f'de nuevo para {version} · {loader}.', 'info')
 
+    def set_target(self, minecraft, loader):
+        """Cambia versión y cargador desde otra página (la barra superior se mantiene sincronizada)."""
+        self.version.setCurrentText(minecraft)
+        self.loader.blockSignals(True)
+        self.loader.setCurrentText(loader)
+        self.loader.blockSignals(False)
+        self.change_target()
+
     def state_of(self, mod):
         key = key_of(mod)
         if key in self.pack:
