@@ -330,6 +330,13 @@ class CreateTests(unittest.TestCase):
         self.assertEqual(exported['mods'], len(titles) + 1)
         self.assertIn('mods/l1.jar', [f['path'] for f in files])
 
+    def test_modpack_demands_a_higher_fit_than_recommendations(self):
+        scores = dict(SCORES, **{'Fortify': (6, 3, 'defensas', False)})
+        recommended = ModpackDesigner(FakeCatalog(RESULTS), FakeAI(brief(), scores), workers=1).recommend(request(target=10))
+        created = ModpackDesigner(FakeCatalog(RESULTS), FakeAI(brief(), scores), workers=1).create(request(target=10, mode='create'))
+        self.assertIn('Fortify', [m['title'] for m in recommended['mods']])
+        self.assertNotIn('Fortify', [m['title'] for m in created['mods']])
+
     def test_incompatible_pair_keeps_best_and_finds_alternative(self):
         catalog = FakeCatalog(RESULTS, incompatible={'G1': 'C1'})
         result = ModpackDesigner(catalog, FakeAI(brief(), SCORES), workers=1).create(request(target=3, mode='create'))

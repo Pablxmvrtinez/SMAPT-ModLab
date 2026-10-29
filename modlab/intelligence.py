@@ -34,7 +34,8 @@ PERFORMANCE = ('prioridad', 'equilibrado', 'contenido')
 LIBRARY_CATEGORIES = {'library', 'api and library', 'libraries'}
 PER_QUERY = 15
 BATCH = 10
-MIN_FIT = 6
+MIN_FIT = 6         # recomendar: el jugador revisa cada tarjeta
+MIN_FIT_PACK = 7    # crear modpack: entra sin revisión individual, se exige más
 BRIEF_EVENT = 'BRIEF\n'
 STOPWORDS = {'with', 'more', 'better', 'system', 'systems', 'style', 'based', 'gameplay', 'minecraft', 'mods', 'world',
              'experience', 'mode', 'simple', 'custom', 'beautiful', 'calm', 'peaceful', 'focused', 'friendly', 'slow',
@@ -524,7 +525,7 @@ class ModpackDesigner:
 
     # 5. Montar --------------------------------------------------------------------------------------
     @staticmethod
-    def _ranked(brief, evaluated, rejected):
+    def _ranked(brief, evaluated, rejected, minimum=MIN_FIT):
         good = []
         performance = {i for i, r in enumerate(brief['requirements'], 1) if _is_performance(r)}
         for entry in evaluated:
@@ -534,7 +535,7 @@ class ModpackDesigner:
             elif entry['requirement'] in performance and re.search(r'\bshaders?\b', text):
                 # Error frecuente de un modelo pequeño: los shaders cuestan rendimiento, no lo mejoran.
                 rejected.append({'title': entry['mod']['title'], 'reason': 'Los shaders consumen más recursos; no mejoran el rendimiento.'})
-            elif entry['fit'] >= MIN_FIT and entry['reason']:
+            elif entry['fit'] >= minimum and entry['reason']:
                 good.append(entry)
         priority = {i: 0 if r['priority'] == 'obligatorio' else 1 for i, r in enumerate(brief['requirements'], 1)}
         good.sort(key=lambda e: (-e['fit'], priority.get(e['requirement'], 2), -e.get('score', 0)))
@@ -605,7 +606,8 @@ class ModpackDesigner:
         stats = {'found': len(entries), 'evaluated': len(evaluated), 'unevaluated': unevaluated,
                  'tokens_per_second': (getattr(self.ai, 'last_stats', None) or {}).get('tokens_per_second', 0)
                  if isinstance(getattr(self.ai, 'last_stats', None), dict) else 0}
-        return brief, self._ranked(brief, evaluated, rejected), rejected, stats
+        minimum = MIN_FIT_PACK if request.mode == 'create' else MIN_FIT
+        return brief, self._ranked(brief, evaluated, rejected, minimum), rejected, stats
 
     def recommend(self, request, progress=lambda m, f=-1: None, check=lambda: None):
         """Modo A: propuestas individuales con su motivo, para añadir o descartar una a una."""

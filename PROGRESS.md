@@ -86,6 +86,29 @@ tarea en segundo plano a la vez y la interfaz entera en `app.py`.
   - Edición con IA Linux: `dist/SMAPT-ModLab-IA-linux-x86_64.tar.gz` (2,7 GB), `--smoke` y `--verify-ai` OK.
   - Windows: se compila y prueba en GitHub Actions (`portable.yml`, `tests.yml`); no se ha probado en un equipo real.
 
+## Misión «Crear con IA» (30-oct)
+
+Diagnóstico con el modelo real: consultas limitadas a 60 conceptos fijos («parecido a Pokémon» → «machines»),
+exclusiones inventadas, sesgo hacia mods de rendimiento y lotes lentos (≈150 s por 20 fichas).
+
+- [x] Arquitectura nueva (`modlab/intelligence.py`): rechazos en una pregunta propia con citas verificadas,
+      plan con búsquedas libres, categorías asignadas después del plan, recuperación paralela con búsqueda
+      relajada, filtro de exclusiones y bibliotecas, evaluación por lotes de 10, montaje equilibrado.
+- [x] Motor (`local_ai.py`, `ai_setup.py`): modelo en el paquete o descargado (reanudable, SHA-256), instalación
+      del motor con pip en entornos virtuales, 6 núcleos físicos, contexto 8192, cancelación.
+- [x] Interfaz: modos Recomendar / Crear modpack, catálogo, versión, cargador, nº de mods, rendimiento, fases
+      con progreso real, interpretación visible, tarjetas con descartar, vista previa editable, exportar,
+      panel «Configurar IA».
+- [x] Evaluación semántica real (`scripts/evaluate_ai.py`, 10 descripciones): 5/10 → 6/10 → 6/10 → 9/10;
+      el fallo restante (medieval) era un error de subcadena en el código («lag» en «villages»), corregido.
+- [x] Extremo a extremo real (`scripts/ai_e2e.py`, Modrinth 1.20.1 Fabric):
+      casas (crear) 117-140 mods encontrados → pack equilibrado + Fabric API → .mrpack validado (≈210 s);
+      «parecido a Pokémon» → Cobblemon 10/10 sin conocer el nombre; apocalipsis zombi → Zombie Apocalypse Core,
+      Guns++, MC: Zombified, ruinas y mapas.
+- Limitaciones conocidas: en CPU una propuesta tarda 3-4 min; el modelo 4B a veces inventa detalles en los
+      motivos (p. ej. «biomas urbanos» de Biomes O' Plenty) aunque el mod sea real y compatible; la GPU
+      (RTX 4060) no se usa: requiere recompilar llama-cpp-python con CUDA o Vulkan (vulkan-headers, sudo).
+
 ## Estado de las pruebas
 
 - 139 pruebas unitarias en verde (sin red), arranque `--smoke` correcto, pyflakes limpio.
