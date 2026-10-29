@@ -10,8 +10,8 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from modlab.errors import Cancelled, CatalogError
-from modlab.intelligence import (BRIEF_EVENT, EVALUATE_SCHEMA, INTERPRET_SCHEMA, NEGATION_SCHEMA, DesignRequest,
-                                 ModpackDesigner, excluded_by, grounded, validate_brief)
+from modlab.intelligence import (BRIEF_EVENT, CATEGORY_SCHEMA, EVALUATE_SCHEMA, INTERPRET_SCHEMA, NEGATION_SCHEMA,
+                                 DesignRequest, ModpackDesigner, excluded_by, grounded, validate_brief)
 from modlab.modpack import build_mrpack
 from modlab.sources.base import CatalogSource
 
@@ -78,6 +78,9 @@ class FakeAI:
     def complete(self, instruction, data, schema, progress=lambda _: None, max_tokens=0):
         self.calls.append((schema, data))
         progress('escribiendo')
+        if schema is CATEGORY_SCHEMA:
+            return {'mapping': [{'requirement': i, 'categories': r.get('categories', [])}
+                                for i, r in enumerate(self.brief['requirements'], 1)]}
         if schema is NEGATION_SCHEMA:
             return {'rejections': json.loads(json.dumps(self.brief.get('exclusions', [])))}
         if schema is INTERPRET_SCHEMA:
@@ -193,6 +196,14 @@ class InterpretationTests(unittest.TestCase):
         self.assertEqual(ai.calls[1][1]['rejected'], ['Magia'])
         self.assertEqual(ai.calls[1][1]['performance_preference'], 'rendimiento')
 
+    def test_suggested_names_must_be_the_project(self):
+        from modlab.intelligence import same_project
+        self.assertTrue(same_project('Sodium', mod('A', 'Sodium')))
+        self.assertTrue(same_project("Macaw's Furniture", mod('B', "Macaw's Furniture")))
+        self.assertTrue(same_project('Create', mod('C', 'Create Fabric')))
+        self.assertFalse(same_project('Realms', mod('D', 'No Realms Button')))
+        self.assertFalse(same_project('Create', mod('E', 'Create: Peaceful Addon Pack')))
+
     def test_exclusion_matches_whole_words(self):
         self.assertEqual(excluded_by(WAND, [{'concept': 'Magia', 'terms': ['magic'], 'categories': []}]), 'Magia')
         self.assertIsNone(excluded_by(mod('M', 'Magical Mystery', 'Tour bus'), [{'concept': 'Magia', 'terms': ['magic'], 'categories': []}]))
@@ -206,9 +217,22 @@ class RecommendTests(unittest.TestCase):
 
     def test_generated_queries_reach_the_real_catalog(self):
         self.designer.recommend(request())
-        for query in ('guns', 'firearms', 'abandoned cities', 'base building', 'Gun Mod X'):
+        for query in ('guns', 'firearms', 'abandoned cities', 'base building', 'Gun Mod X', 'category:adventure'):
             self.assertIn(query, self.catalog.queries)
         self.assertEqual(len(self.catalog.queries), len(set(self.catalog.queries)))  # sin búsquedas repetidas
+        self.assertNotIn('category:Inventada', self.catalog.queries)  # categoría que el catálogo no tiene
+
+    def test_sparse_phrases_are_retried_with_their_words(self):
+        # «base building» devuelve 1 resultado: se reintenta con «base» y «building» con menos prioridad.
+        self.designer.recommend(request())
+        self.assertIn('building', self.catalog.queries)
+        self.assertNotIn('with', self.catalog.queries)
+
+    def test_category_mapping_happens_after_the_plan(self):
+        ai = FakeAI(brief(), SCORES)
+        ModpackDesigner(FakeCatalog(RESULTS), ai, workers=1).interpret(request())
+        self.assertEqual([c[0] for c in ai.calls], [NEGATION_SCHEMA, INTERPRET_SCHEMA, CATEGORY_SCHEMA])
+        self.assertNotIn('categories', ai.calls[1][1])  # el plan se escribe sin ver la lista
 
     def test_recommendations_respect_exclusions_coverage_and_reasons(self):
         events = []
@@ -235,6 +259,27 @@ class RecommendTests(unittest.TestCase):
         self.assertNotIn('Fortify', titles)
         self.assertNotIn('Urban Ruins', titles)
         self.assertTrue(any(r['title'] == 'Urban Ruins' for r in result['rejected']))
+
+    def test_one_requirement_cannot_fill_the_pack(self):
+        perf = [mod(f'P{i}', f'Perf {i}', 'Performance optimization') for i in range(8)]
+        results = dict(RESULTS, **{'base building': [BASE] + perf})
+        scores = dict(SCORES, **{f'Perf {i}': (10, 3, f'optimización {i}', False) for i in range(8)})
+        raw = brief()
+        raw['requirements'][2]['name'] = 'Rendimiento'
+        result = ModpackDesigner(FakeCatalog(results), FakeAI(raw, scores), workers=1).create(request(target=12, mode='create'))
+        perf_titles = [m['title'] for m in result['mods'] if m['title'].startswith('Perf')]
+        self.assertLessEqual(len(perf_titles), 4)
+        self.assertLess(len(result['mods']), 12)  # mejor un pack más pequeño que uno desequilibrado
+
+    def test_shaders_never_count_as_performance(self):
+        shader = mod('S1', 'Shiny Shaders', 'Shader pack loader for better visuals')
+        results = dict(RESULTS, **{'base building': [BASE, shader]})
+        scores = dict(SCORES, **{'Shiny Shaders': (9, 3, 'rendimiento', False)})
+        raw = brief()
+        raw['requirements'][2]['name'] = 'Rendimiento'
+        result = ModpackDesigner(FakeCatalog(results), FakeAI(raw, scores), workers=1).recommend(request(target=10))
+        self.assertNotIn('Shiny Shaders', [m['title'] for m in result['mods']])
+        self.assertTrue(any(r['title'] == 'Shiny Shaders' for r in result['rejected']))
 
     def test_mod_without_file_is_replaced(self):
         catalog = FakeCatalog(RESULTS, no_file=['G1'])
