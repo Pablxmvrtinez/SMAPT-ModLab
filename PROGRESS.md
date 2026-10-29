@@ -74,6 +74,8 @@ tarea en segundo plano a la vez y la interfaz entera en `app.py`.
   - IA local verificada con el modelo real (`--verify-ai`) desde el código y desde el paquete con IA.
   - Prueba real de propuesta con IA sobre Modrinth: falló en el primer lote por un descarte repetido del modelo;
     corregido (IDs 1..20 por lote, descartes tolerantes, fichas sin valorar descartadas con aviso).
+    Repetida tras la corrección: 8 mods coherentes con la petición (Sodium, Lithium, ModernFix, FerriteCore,
+    Macaw's Furniture, Another Furniture, Handwerk, Adaptive Performance Tweaks), sin magia, en 185 s de CPU.
   - Navegación «Volver» simplificada; autor, descripción y build manual del cargador coherentes en el pack.
   - Pasarela probada como proceso real contra la API de CurseForge (clave inválida → 403 claro, sin filtrar la clave).
   - Fusión de `origin/main` (validador .mrpack, nombres Windows, entornos, copias sin colisión, seguridad de proyectos).
