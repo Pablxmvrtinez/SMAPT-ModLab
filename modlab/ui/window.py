@@ -212,11 +212,11 @@ class ModLab(QMainWindow):
         return bar
 
     # Navegación ---------------------------------------------------------------------------------
-    def navigate(self, name):
+    def navigate(self, name, remember=True):
         if name not in self.pages:
             return
         current = self._current_name()
-        if current and current != name:
+        if remember and current and current != name:
             self.history = (self.history + [current])[-20:]
         for key, item in self.nav.items():
             item.setChecked(key == name)
@@ -231,13 +231,11 @@ class ModLab(QMainWindow):
         return next((k for k, v in self.pages.items() if v is widget), None)
 
     def back(self):
+        current = self._current_name()
         while self.history:
             name = self.history.pop()
-            if name != self._current_name():
-                current = self._current_name()
-                self.navigate(name)
-                if self.history and self.history[-1] == current:
-                    self.history.pop()
+            if name != current:
+                self.navigate(name, remember=False)
                 return
 
     def open_details(self, mod):

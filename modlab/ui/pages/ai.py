@@ -154,6 +154,8 @@ class AiPage(QWidget):
             if mod.get('minecraft') == mc and mod.get('loader') == loader and mod['key'] not in self.win.pack:
                 self.win.pack.add(mod)
                 added += 1
+        if not self.win.pack.description:
+            self.win.pack.description = self.prompt.toPlainText().strip()[:500]
         self.win.pack_changed.emit()
         self.win.toast(f'{added} mods añadidos al pack', 'Puedes seguir explorando y ampliar el pack.', 'success')
 

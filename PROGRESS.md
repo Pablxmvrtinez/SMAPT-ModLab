@@ -65,8 +65,22 @@ tarea en segundo plano a la vez y la interfaz entera en `app.py`.
   - requirements-lite.txt (sin IA) + requirements.txt (completa); build_portable.py con `--lite` e iconos generados.
   - CI: `tests.yml` (Linux y Windows, Python 3.11/3.12) en cada push/PR; `portable.yml` con edición ligera/completa.
   - Medido (datos reales de Modrinth): ventana visible 0,30 s; 50 tarjetas 0,35 s; 273 MB tras 6 páginas; CPU en reposo 0,7 %.
-- [ ] Fase 5 · Funciones restantes y errores
+- [~] Fase 5 · Funciones restantes y errores (en curso)
+  - Hecho: IA local verificada con el modelo real (`--verify-ai`, 3 s); navegación «Volver» simplificada;
+    autor y descripción del pack coherentes; README y THIRD_PARTY actualizados.
+  - Hecho: pasarela probada como proceso real contra la API de CurseForge con clave inválida → 403 claro, sin filtrar la clave.
+  - Pendiente: revisar el resultado de la propuesta real de la IA con Modrinth (script de prueba en segundo plano).
 - [ ] Fase 6 · Pruebas, compilación y documentación
+  - Pendiente: mover la compilación anterior (`dist/SMAPT-ModLab`, 16-oct) a una carpeta de copia y
+    construir `python build_portable.py --lite` y la edición completa con `.venv` (PyInstaller 6.22 y
+    llama-cpp-python 0.3.36 ya instalados en `.venv`).
+  - Pendiente: ejecutar el CI (`tests.yml`) en GitHub para verificar Windows.
+
+## Estado de las pruebas
+
+- 111 pruebas unitarias en verde (sin red), arranque `--smoke` correcto, pyflakes limpio.
+- Modrinth verificado en vivo con `scripts/check_live.py modrinth`.
+- Windows: no probado en una máquina real; el workflow `tests.yml` lo cubrirá en GitHub Actions.
 
 ## Bloqueos
 

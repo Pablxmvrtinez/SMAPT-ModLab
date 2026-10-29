@@ -146,6 +146,8 @@ class PackPage(QWidget):
             self.name.setText(pack.name)
         if self.version.text() != pack.version:
             self.version.setText(pack.version)
+        if pack.author and self.author.text() != pack.author:
+            self.author.setText(pack.author)
         counts = {s: len(pack.by_source(s)) for s in ('curseforge', 'modrinth')}
         self.filters.set_text('all', f'Todos  {len(pack)}')
         self.filters.set_text('curseforge', f"CurseForge  {counts['curseforge']}")
