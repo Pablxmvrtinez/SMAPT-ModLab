@@ -10,8 +10,8 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from modlab.errors import Cancelled, CatalogError
-from modlab.intelligence import (BRIEF_EVENT, EVALUATE_SCHEMA, INTERPRET_SCHEMA, DesignRequest, ModpackDesigner,
-                                 excluded_by, validate_brief)
+from modlab.intelligence import (BRIEF_EVENT, EVALUATE_SCHEMA, INTERPRET_SCHEMA, NEGATION_SCHEMA, DesignRequest,
+                                 ModpackDesigner, excluded_by, grounded, validate_brief)
 from modlab.modpack import build_mrpack
 from modlab.sources.base import CatalogSource
 
@@ -78,8 +78,11 @@ class FakeAI:
     def complete(self, instruction, data, schema, progress=lambda _: None, max_tokens=0):
         self.calls.append((schema, data))
         progress('escribiendo')
+        if schema is NEGATION_SCHEMA:
+            return {'rejections': json.loads(json.dumps(self.brief.get('exclusions', [])))}
         if schema is INTERPRET_SCHEMA:
-            return json.loads(json.dumps(self.brief))
+            assert 'rejected' in data
+            return {k: v for k, v in json.loads(json.dumps(self.brief)).items() if k != 'exclusions'}
         assert schema is EVALUATE_SCHEMA
         result = []
         for card in data['cards']:
@@ -91,7 +94,7 @@ class FakeAI:
 
 def brief(**extra):
     value = {'analysis': 'Quiere supervivencia zombi urbana con armas, sin magia.', 'summary': 'Apocalipsis zombi.',
-             'setting': 'Ciudades en ruinas', 'difficulty': 'moderada', 'combat': 'Moderado', 'performance': 'equilibrado',
+             'setting': 'Ciudades en ruinas', 'difficulty': 'moderada', 'combat': 'Moderado', 'performance_priority': False,
              'requirements': [
                  {'name': 'Armas de fuego', 'detail': 'Disparar', 'priority': 'obligatorio',
                   'queries': ['guns', 'firearms', 'magic guns'], 'examples': ['Gun Mod X'], 'categories': ['adventure', 'Inventada']},
@@ -99,7 +102,7 @@ def brief(**extra):
                   'queries': ['abandoned cities'], 'examples': [], 'categories': []},
                  {'name': 'Bases', 'detail': 'Construir refugios', 'priority': 'opcional',
                   'queries': ['base building'], 'examples': [], 'categories': []}],
-             'exclusions': [{'concept': 'Magia', 'terms': ['magic', 'spell', 'magia'], 'categories': ['Inventada']}],
+             'exclusions': [{'quote': 'sin magia', 'concept': 'Magia', 'strength': 'total', 'terms': ['magic', 'spell', 'magia']}],
              'assumptions': ['Multijugador opcional']}
     value.update(extra)
     return value
@@ -128,22 +131,50 @@ def request(**extra):
 
 class InterpretationTests(unittest.TestCase):
     def test_queries_are_free_text_and_excluded_topics_removed(self):
-        value = validate_brief(brief(), FakeCatalog({}).categories())
+        value = validate_brief(brief(), request().description)
         self.assertEqual(value['requirements'][0]['queries'], ['guns', 'firearms'])  # «magic guns» pide un tema excluido
-        self.assertEqual(value['requirements'][0]['categories'], ['adventure'])  # «Inventada» no existe en el catálogo
-        self.assertEqual(value['exclusions'][0]['categories'], [])
+        self.assertEqual(value['exclusions'][0]['concept'], 'Magia')
         self.assertNotIn('enum', json.dumps(INTERPRET_SCHEMA['properties']['requirements']['items']['properties']['queries']))
+        self.assertNotIn('categories', json.dumps(INTERPRET_SCHEMA))  # sin lista de categorías que condicione al modelo
+
+    def test_invented_exclusions_are_dropped(self):
+        invented = dict(brief(), exclusions=[{'quote': 'sin fantasía', 'concept': 'Fantasía', 'strength': 'total', 'terms': ['fantasy']},
+                                             {'quote': 'ciudades abandonadas', 'concept': 'Ciudades', 'strength': 'total', 'terms': ['city']}])
+        value = validate_brief(invented, 'Quiero un mundo medieval con reinos, aldeas y ciudades abandonadas.')
+        self.assertEqual(value['exclusions'], [])  # la primera cita no está en el texto; la segunda no es un rechazo
+        self.assertTrue(grounded('nada de máquinas', 'Quiero magia y dragones, pero nada de maquinas.'))
+
+    def test_moderation_is_a_limit_not_a_filter(self):
+        moderate = dict(brief(), exclusions=[{'quote': 'sin añadir demasiados enemigos', 'concept': 'Enemigos', 'strength': 'total',
+                                              'terms': ['mob', 'enemy']}])
+        value = validate_brief(moderate, 'Quiero un modpack de aventuras, pero sin añadir demasiados enemigos.')
+        self.assertEqual(value['exclusions'], [])
+        self.assertEqual(value['limits'][0]['concept'], 'Enemigos')
+
+    def test_negated_queries_and_duplicates_are_removed(self):
+        raw = dict(brief(), requirements=[{'name': 'Paz', 'detail': '', 'priority': 'obligatorio', 'queries': ['no mobs', 'peaceful', 'without combat'], 'examples': []},
+                                          {'name': 'Paz', 'detail': '', 'priority': 'opcional', 'queries': ['calm'], 'examples': []},
+                                          {'name': 'Muebles', 'detail': '', 'priority': 'opcional', 'queries': ['peaceful', 'furniture'], 'examples': []}])
+        value = validate_brief(raw, request().description)
+        self.assertEqual([r['queries'] for r in value['requirements']], [['peaceful'], ['furniture']])
 
     def test_plan_without_searchable_requirements_is_rejected(self):
         with self.assertRaises(CatalogError):
-            validate_brief(dict(brief(), requirements=[{'name': 'x', 'queries': [], 'examples': []}]), [])
+            validate_brief(dict(brief(), requirements=[{'name': 'x', 'queries': [], 'examples': []}]), 'texto')
+
+    def test_low_end_pc_sets_performance(self):
+        value, _ = ModpackDesigner(FakeCatalog(RESULTS), FakeAI(dict(brief(), performance_priority=True), SCORES)).interpret(request())
+        self.assertEqual(value['performance'], 'prioridad')
+        self.assertEqual(value['requirements'][-1]['name'], 'Rendimiento')
 
     def test_performance_preference_adds_requirement(self):
         ai = FakeAI(brief(), SCORES)
         value, _ = ModpackDesigner(FakeCatalog(RESULTS), ai).interpret(request(performance='rendimiento'))
         self.assertEqual(value['performance'], 'prioridad')
         self.assertEqual(value['requirements'][-1]['name'], 'Rendimiento')
-        self.assertEqual(ai.calls[0][1]['performance_preference'], 'rendimiento')
+        self.assertIs(ai.calls[0][0], NEGATION_SCHEMA)  # primero se pregunta qué rechaza el jugador
+        self.assertEqual(ai.calls[1][1]['rejected'], ['Magia'])
+        self.assertEqual(ai.calls[1][1]['performance_preference'], 'rendimiento')
 
     def test_exclusion_matches_whole_words(self):
         self.assertEqual(excluded_by(WAND, [{'concept': 'Magia', 'terms': ['magic'], 'categories': []}]), 'Magia')
@@ -158,8 +189,9 @@ class RecommendTests(unittest.TestCase):
 
     def test_generated_queries_reach_the_real_catalog(self):
         self.designer.recommend(request())
-        for query in ('guns', 'firearms', 'abandoned cities', 'base building', 'Gun Mod X', 'category:adventure'):
+        for query in ('guns', 'firearms', 'abandoned cities', 'base building', 'Gun Mod X'):
             self.assertIn(query, self.catalog.queries)
+        self.assertEqual(len(self.catalog.queries), len(set(self.catalog.queries)))  # sin búsquedas repetidas
 
     def test_recommendations_respect_exclusions_coverage_and_reasons(self):
         events = []

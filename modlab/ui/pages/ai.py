@@ -393,7 +393,11 @@ class AiPage(QWidget):
             chips.addWidget(chip)
         for exclusion in brief['exclusions']:
             chip = Badge('Sin ' + exclusion['concept'].lower(), 'danger')
-            chip.setToolTip('Se descartan fichas con: ' + ', '.join(exclusion['terms']))
+            chip.setToolTip(f"«{exclusion.get('quote', '')}» · se descartan fichas con: " + ', '.join(exclusion['terms']))
+            chips.addWidget(chip)
+        for limit in brief.get('limits', []):
+            chip = Badge('Con moderación: ' + limit['concept'].lower(), 'neutral')
+            chip.setToolTip(f"«{limit.get('quote', '')}» · la IA lo tiene en cuenta al evaluar, sin descartar fichas.")
             chips.addWidget(chip)
         chips.addStretch()
         self.brief_layout.addLayout(chips)

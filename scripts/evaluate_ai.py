@@ -17,12 +17,8 @@ import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from modlab.intelligence import INTERPRET_PROMPT, INTERPRET_SCHEMA, DesignRequest, apply_preferences, validate_brief  # noqa: E402
+from modlab.intelligence import DesignRequest, ModpackDesigner, apply_preferences  # noqa: E402
 from modlab.local_ai import LocalAI  # noqa: E402
-
-CATEGORIES = ['adventure', 'cursed', 'decoration', 'economy', 'equipment', 'food', 'game-mechanics', 'library', 'magic',
-              'management', 'minigame', 'mobs', 'optimization', 'social', 'storage', 'technology', 'transportation',
-              'utility', 'worldgen']
 
 # (nombre, descripción, conceptos que deben aparecer, temas que deben excluirse, temas que no deben buscarse, extra)
 CASES = [
@@ -46,7 +42,8 @@ CASES = [
      [r'pok[eé]mon|cobblemon|pixelmon|creature|monster|catch|captur|tam'], [], [], {'no_exclusions': True}),
     ('fps', 'Quiero mejorar FPS sin cambiar la experiencia original.',
      [r'perform|fps|optimi|memory|render|lag'], [], [r'boss|dungeon|magic|furniture|weapon|biome|dragon|mob'],
-     {'performance': ('prioridad',), 'only': r'perform|fps|optimi|memory|render|lag|entity|chunk|light|startup|load|sodium|lithium|ferrite|culling|smooth|cpu|gpu'}),
+     {'performance': ('prioridad',), 'only': r'perform|fps|optimi|memory|render|lag|entity|chunk|light|startup|load|sodium|lithium|'
+                                             r'ferrite|culling|smooth|cpu|gpu|frame|optifine|stabil|tuning|speed|efficien|fast'}),
     ('medieval', 'Quiero un mundo medieval con reinos, aldeas y guerras.',
      [r'medieval|castle|kingdom|knight', r'village|town|settlement', r'war|battle|army|siege|faction|soldier|conquest'], [], [],
      {'no_exclusions': True}),
@@ -54,7 +51,8 @@ CASES = [
      [r'pet|companion|animal|tame', r'furniture|decor', r'farm|crop|agricult|harvest|garden'], [],
      [r'boss|dungeon|horde|invasion|monster|zombie'], {}),
     ('aventura', 'Quiero un modpack de aventuras, pero sin añadir demasiados enemigos.',
-     [r'adventure|explor|dungeon|structure|quest|travel'], [], [r'horde|invasion|more mobs|monster'], {}),
+     [r'adventure|explor|dungeon|structure|quest|travel'], [], [r'horde|invasion|more mobs|monster'],
+     {'no_exclusions': True, 'limits': r'enem|mob|monst|hostil|combat'}),
 ]
 
 
@@ -77,6 +75,9 @@ def judge(case, brief):
         bad = [q for q in queries if re.search(pattern, q)]
         if bad:
             failures.append(f'busca un tema rechazado /{pattern}/: {bad}')
+    if 'limits' in extra and not any(re.search(extra['limits'], (e['concept'] + ' ' + ' '.join(e['terms'])).casefold())
+                                     for e in brief['limits']):
+        failures.append('no recoge la moderación pedida como límite')
     if extra.get('no_exclusions') and brief['exclusions']:
         failures.append('inventa exclusiones: ' + ', '.join(e['concept'] for e in brief['exclusions']))
     if 'difficulty' in extra and brief['difficulty'] not in extra['difficulty']:
@@ -105,11 +106,8 @@ def main():
         for case in selected:
             name, phrase = case[0], case[1]
             start = time.monotonic()
-            raw = ai.complete(INTERPRET_PROMPT, {'description': phrase, 'minecraft': '1.20.1', 'loader': 'Fabric',
-                                                 'approximate_mods': 25, 'performance_preference': 'equilibrado',
-                                                 'categories': CATEGORIES}, INTERPRET_SCHEMA, max_tokens=1400)
-            brief = apply_preferences(validate_brief(raw, [{'name': c, 'id': c} for c in CATEGORIES]),
-                                      DesignRequest(phrase, '1.20.1', 'Fabric'))
+            request = DesignRequest(phrase, '1.20.1', 'Fabric')
+            brief = apply_preferences(ModpackDesigner(None, ai).understand(phrase, request), request)
             failures = judge(case, brief)
             failed += bool(failures)
             seconds = time.monotonic() - start
@@ -118,6 +116,7 @@ def main():
             for r in brief['requirements']:
                 print(f"   - {r['name']} ({r['priority']}): {r['queries']} {r['examples'] or ''}")
             print('   Excluye:', [(e['concept'], e['terms']) for e in brief['exclusions']] or 'nada',
+                  '· con moderación:', [e['concept'] for e in brief['limits']] or 'nada',
                   '· dificultad', brief['difficulty'], '· rendimiento', brief['performance'])
             for failure in failures:
                 print('   ✗', failure)
