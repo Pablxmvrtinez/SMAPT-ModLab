@@ -35,6 +35,12 @@ class CatalogSource:
     def available(self):
         return True
 
+    def cache_size(self):
+        return 0
+
+    def clear_cache(self):
+        pass
+
     def pin(self, mod, minecraft, loader):
         pinned, failures = self.pin_many([mod], minecraft, loader)
         if failures:

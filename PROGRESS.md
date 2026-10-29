@@ -45,7 +45,17 @@ tarea en segundo plano a la vez y la interfaz entera en `app.py`.
   - Descargas con verificación de hash, escritura atómica y dominios permitidos.
   - Pasarela: rutas nuevas de solo lectura, POST por lotes validados, `no-store`, `/health`, límite configurable.
   - `scripts/check_live.py`: Modrinth verificado en vivo (búsqueda, filtros, deps Iris→Sodium, `.mrpack`, descarga).
-- [ ] Fase 3 · Interfaz nueva
+- [x] Fase 3 · Interfaz nueva (`modlab/ui/`)
+  - Sistema de diseño: tokens de color, hoja de estilos, iconos SVG propios, tipografía y espaciado coherentes.
+  - Navegación lateral (se compacta por debajo de 1180 px), barra superior con versión/cargador globales.
+  - Tarjetas con portada y logo reales, insignia de catálogo, estado Añadir/Añadiendo/En el pack.
+  - Esqueletos animados de carga, estados vacíos y de error con acciones, avisos (toasts), fundido entre páginas.
+  - Explorar: CurseForge/Modrinth, búsqueda instantánea (450 ms), categorías, orden, paginación.
+  - Ficha de mod: portada, descripción saneada, versiones (elegir una concreta), dependencias, galería.
+  - Mi modpack: tabla, filtros por catálogo, comprobación con informe, exportar .zip/.mrpack, descargar mods.
+  - Mi equipo, Optimizar (con restaurar copia) y Ajustes (conexión, caché, registros, IA).
+  - Pantalla de carga (splash) y barra de actividad con progreso real y cancelación.
+  - Tareas con QThreadPool: varias a la vez, la búsqueda nueva sustituye a la anterior.
 - [ ] Fase 4 · Refactorización y rendimiento
 - [ ] Fase 5 · Funciones restantes y errores
 - [ ] Fase 6 · Pruebas, compilación y documentación

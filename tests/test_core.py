@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from modlab.core import hardware, instances, recommend, apply_graphics, read_json, save_plan
+from modlab.core import hardware, instances, recommend, apply_graphics, read_json, backups, restore_backup, instance_info
 
 class CoreTests(unittest.TestCase):
     def test_hardware(self):
@@ -43,12 +43,38 @@ class CoreTests(unittest.TestCase):
             self.assertIn("enableShaders=false", (pack/"config/oculus.properties").read_text())
             self.assertIn("shaderPack=pack.zip", (pack/"config/oculus.properties").read_text())
 
-    def test_plan_uses_chosen_destination(self):
+    def test_backup_can_be_restored(self):
         with tempfile.TemporaryDirectory() as td:
-            dest=Path(td)/'friend-plan.json'
-            result=save_plan('Chill','1.20.1','Forge',[],{}, {},destination=dest)
-            self.assertEqual(result,dest)
-            self.assertEqual(read_json(dest)['description'],'Chill')
+            pack = Path(td)
+            (pack / "options.txt").write_text("renderDistance:16\n")
+            inst = {"path": str(pack)}
+            with patch("modlab.core.is_running", return_value=False):
+                apply_graphics(inst, recommend(283, {"ram_gb": 32, "vram_gb": 8}))
+                self.assertIn("renderDistance:8", (pack / "options.txt").read_text())
+                copies = backups(inst)
+                self.assertEqual(len(copies), 1)
+                restore_backup(inst, copies[0])
+            self.assertIn("renderDistance:16", (pack / "options.txt").read_text())
+            self.assertEqual(len(backups(inst)), 2)
+            with self.assertRaises(ValueError):
+                restore_backup(inst, Path(td))
+
+    def test_prism_and_curseforge_metadata(self):
+        with tempfile.TemporaryDirectory() as td:
+            prism = Path(td) / "prism"
+            (prism / ".minecraft/mods").mkdir(parents=True)
+            (prism / ".minecraft/mods/a.jar").write_text("x")
+            (prism / "mmc-pack.json").write_text('{"components":[{"uid":"net.minecraft","version":"1.21.1"},'
+                                                 '{"uid":"net.neoforged","version":"21.1.1"}]}')
+            (prism / "instance.cfg").write_text("name=Mi Prism\n")
+            info = instance_info("Prism", prism)
+            self.assertEqual((info["name"], info["version"], info["loader"], info["mods"]), ("Mi Prism", "1.21.1", "NeoForge", 1))
+            cf = Path(td) / "cf"
+            (cf / "mods").mkdir(parents=True)
+            (cf / "minecraftinstance.json").write_text('{"name":"CF","gameVersion":"1.20.1","baseModLoader":{"name":"forge-47.4.0"}}')
+            info = instance_info("CurseForge", cf)
+            self.assertEqual((info["version"], info["loader"]), ("1.20.1", "Forge"))
+            self.assertIsNone(instance_info("X", Path(td) / "empty"))
 
     def test_guard_running_game(self):
         with tempfile.TemporaryDirectory() as td:

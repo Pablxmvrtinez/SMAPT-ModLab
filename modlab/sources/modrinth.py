@@ -13,8 +13,9 @@ LOADERS = {'Forge': 'forge', 'NeoForge': 'neoforge', 'Fabric': 'fabric', 'Quilt'
 LOADER_BY_SLUG = {value: name for name, value in LOADERS.items()}
 SORTS = {'relevance': 'relevance', 'downloads': 'downloads', 'popularity': 'follows', 'updated': 'updated', 'name': 'relevance'}
 # Etiquetas de plataforma o de servidor que no son temáticas.
-NOT_THEMES = set(LOADERS.values()) | {'bukkit', 'spigot', 'paper', 'purpur', 'folia', 'sponge', 'velocity',
-                                      'bungeecord', 'waterfall', 'datapack', 'liteloader', 'modloader', 'rift'}
+NOT_THEMES = set(LOADERS.values()) | {'babric', 'bta-babric', 'bukkit', 'bungeecord', 'datapack', 'folia', 'geyser',
+                                      'java-agent', 'legacy-fabric', 'liteloader', 'modloader', 'nilloader', 'ornithe',
+                                      'paper', 'purpur', 'rift', 'spigot', 'sponge', 'velocity', 'waterfall'}
 TTL_TAGS = 24 * 3600
 TTL_SEARCH = 10 * 60
 TTL_PROJECT = 30 * 60
@@ -188,3 +189,6 @@ class ModrinthClient(CatalogSource):
     def clear_cache(self):
         if self.api.cache:
             self.api.cache.clear()
+
+    def cache_size(self):
+        return self.api.cache.size() if self.api.cache else 0
