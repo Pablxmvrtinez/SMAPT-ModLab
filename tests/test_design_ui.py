@@ -266,6 +266,40 @@ class DesignUITests(unittest.TestCase):
         self.window.back()
         self.assertIsNot(self.window.stack.currentWidget(), details)
 
+    def test_verify_saved_mrpack_reports_without_touching_pack(self):
+        from test_mrpack_validator import archive, manifest
+        self.window.toggle_mod(self.cf.mods_list[0])
+        self.wait()
+        with tempfile.TemporaryDirectory() as td:
+            good, bad = Path(td) / 'ok.mrpack', Path(td) / 'bad.mrpack'
+            archive(good, manifest())
+            bad.write_bytes(b'not a zip')
+            page = self.window.pages['pack']
+            with patch('modlab.ui.pages.pack.QFileDialog.getOpenFileName', return_value=(str(good), '')), \
+                    patch('modlab.ui.pages.pack.QMessageBox.information') as info:
+                page.verify_mrpack()
+                self.wait()
+            self.assertIn('1 mods', info.call_args.args[2])
+            with patch('modlab.ui.pages.pack.QFileDialog.getOpenFileName', return_value=(str(bad), '')), \
+                    patch('modlab.ui.pages.pack.QMessageBox.warning') as warning:
+                page.verify_mrpack()
+                self.wait()
+            self.assertIn('manifiesto', warning.call_args.args[2])
+            with patch('modlab.ui.pages.pack.QFileDialog.getOpenFileName', return_value=('', '')):
+                page.verify_mrpack()
+            self.assertNotIn('verify', self.window.runner.keys)
+        self.assertEqual(len(self.window.pack), 1)
+
+    def test_changing_target_clears_manual_loader_build(self):
+        self.window.toggle_mod(self.cf.mods_list[0])
+        self.wait()
+        page = self.window.pages['pack']
+        page.loader_build.setText('47.4.10')
+        self.assertEqual(self.window.pack.loader_version, '47.4.10')
+        self.window.loader.setCurrentText('NeoForge')
+        self.assertEqual(page.loader_build.text(), '')
+        self.assertEqual(self.window.pack.loader_version, '')
+
     def test_session_key_is_never_saved(self):
         settings_page = self.window.pages['settings']
         settings_page.key.setText('secret-session-key')

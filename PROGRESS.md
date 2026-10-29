@@ -1,13 +1,12 @@
 # Progreso de S.M.A.P.T. ModLab 2.0
 
 Registro de trabajo para poder retomar la tarea si la sesión se interrumpe.
-Rama remota: `modlab-2.0` (este trabajo). **`origin/main` tiene 17 commits que este trabajo no incluye**
-(Modrinth público: `public_catalog.py`, `public_page.py`, `mrpack_validator.py`, nombres seguros en Windows,
-CI de Windows, guías). La copia local partió de `b324b86`, anterior a ellos.
-
-**Siguiente paso obligatorio:** integrar `origin/main` en `modlab-2.0` conservando sus funciones
-(validación de `.mrpack`, nombres válidos en Windows, smoke de Modrinth en vivo, preferencia de versiones estables)
-dentro de la nueva estructura `modlab/`, y después abrir un PR hacia `main`.
+Rama: `modlab-2.0` (remota `origin/modlab-2.0`). Incluye la fusión de `origin/main` (17 commits del 22–24 oct):
+su validador `.mrpack`, nombres válidos en Windows, entornos de Modrinth, copias sin colisiones, seguridad de
+proyectos, prueba real de Modrinth y publicación de betas se integraron en la estructura `modlab/`.
+`public_catalog.py` y `public_page.py` se retiraron porque `modlab/sources/modrinth.py` y la interfaz nueva los sustituyen.
+Diferencia deliberada: un ciclo de dependencias obligatorias (A↔B) se resuelve incluyendo ambos mods en lugar de
+bloquear la exportación; sí se avisa si dos mods exigen versiones distintas de la misma dependencia.
 
 ## Fase 1 · Inspección (completada)
 

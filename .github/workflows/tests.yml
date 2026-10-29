@@ -1,32 +1,42 @@
-name: Pruebas
+name: Pruebas automáticas
+
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   tests:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest]
-        python: ['3.11', '3.12']
+        os: [ubuntu-24.04, windows-2022]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     env:
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python }}
-      - name: Bibliotecas del sistema para Qt
+          python-version: "3.12"
+          cache: pip
+      - name: Instalar bibliotecas de Qt para Linux
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
-      - name: Dependencias (sin IA)
-        run: python -m pip install -r requirements-lite.txt pyflakes
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libopengl0 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libdbus-1-3
+      - name: Instalar dependencias (edición pública, sin IA)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyflakes
       - name: Análisis estático
         run: python -m pyflakes app.py catalog_server.py build_portable.py modlab scripts tests
-      - name: Pruebas
+      - name: Ejecutar pruebas de lógica e interfaz
         run: python -m unittest discover -s tests -v
-      - name: Arranque de la interfaz
+      - name: Comprobar que la interfaz arranca
         run: python app.py --smoke

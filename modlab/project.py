@@ -11,7 +11,9 @@ SCHEMA = 2
 STORED = ('source', 'project_id', 'title', 'slug', 'file_id', 'version_number', 'release', 'role', 'reason', 'caveat')
 PINNED = ('file_id', 'file', 'version_number', 'release', 'minecraft', 'loader')
 VERSION_PATTERN = re.compile(r'^[0-9A-Za-z][0-9A-Za-z.\-_+ ]{0,31}$')
-MODRINTH_ID = re.compile(r'^[A-Za-z0-9]{1,64}$')
+MODRINTH_ID = re.compile(r'^[A-Za-z0-9_-]{1,100}$')
+MAX_FILE_BYTES = 5 * 1024 * 1024
+LOADER_BUILD = re.compile(r'^[A-Za-z0-9.+_-]{1,60}$')
 
 
 class Pack:
@@ -21,6 +23,7 @@ class Pack:
         self.author = ''
         self.minecraft = minecraft
         self.loader = loader
+        self.loader_version = ''  # versión manual del cargador; vacía = la recomendada oficial
         self.description = ''
         self.mods = {}
 
@@ -60,6 +63,7 @@ class Pack:
         if (minecraft, loader) == (self.minecraft, self.loader):
             return False
         self.minecraft, self.loader = minecraft, loader
+        self.loader_version = ''  # un build manual de otra versión exportaría una combinación equivocada
         for mod in self.mods.values():
             for field in PINNED:
                 mod.pop(field, None)
@@ -68,7 +72,7 @@ class Pack:
     def to_json(self):
         return {'schema': SCHEMA, 'app': 'smapt-modlab', 'name': self.name, 'version': self.version,
                 'author': self.author, 'minecraft': self.minecraft, 'loader': self.loader,
-                'description': self.description,
+                'loader_version': self.loader_version, 'description': self.description,
                 'mods': [{k: m[k] for k in STORED if m.get(k) not in (None, '')} for m in self.mods.values()]}
 
     def save(self, path):
@@ -90,6 +94,10 @@ class Pack:
         pack.version = str(value.get('version') or '1.0.0')[:32]
         pack.author = str(value.get('author') or '')[:100]
         pack.description = str(value.get('description') or '')[:4000]
+        build = value.get('loader_version') or ''
+        if build and (not isinstance(build, str) or not LOADER_BUILD.match(build)):
+            raise ValueError('La versión manual del cargador no es válida.')
+        pack.loader_version = build
         for raw in mods:
             if not isinstance(raw, dict):
                 raise ValueError('El proyecto contiene mods no válidos.')
@@ -97,8 +105,14 @@ class Pack:
             pid = raw.get('project_id')
             valid_id = ((source == 'curseforge' and type(pid) is int and pid > 0) or
                         (source == 'modrinth' and isinstance(pid, str) and MODRINTH_ID.match(pid)))
-            if not valid_id or not isinstance(raw.get('title'), str):
+            if not valid_id or not isinstance(raw.get('title'), str) or len(raw['title']) > 200:
                 raise ValueError('El proyecto contiene mods no válidos.')
+            file_id = raw.get('file_id')
+            if file_id is not None and not ((source == 'curseforge' and type(file_id) is int and file_id > 0) or
+                                            (source == 'modrinth' and isinstance(file_id, str) and MODRINTH_ID.match(file_id))):
+                raise ValueError('El proyecto contiene IDs de archivo incorrectos.')
+            if f'{source}:{pid}' in pack:
+                raise ValueError('El proyecto contiene mods duplicados.')
             mod = {k: raw[k] for k in STORED if k in raw}
             mod['title'] = mod['title'][:200]
             pack.add(mod)
@@ -106,6 +120,12 @@ class Pack:
 
     @classmethod
     def load(cls, path):
+        try:
+            too_big = Path(path).stat().st_size > MAX_FILE_BYTES
+        except OSError as exc:
+            raise ValueError('No se pudo leer el archivo: ' + type(exc).__name__) from None
+        if too_big:
+            raise ValueError('El archivo supera el tamaño máximo de 5 MB.')
         try:
             value = json.loads(Path(path).read_text(encoding='utf-8'))
         except (OSError, ValueError) as exc:

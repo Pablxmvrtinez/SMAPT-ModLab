@@ -62,8 +62,8 @@ class DownloadTests(unittest.TestCase):
 
     def test_unsafe_file_names_are_rejected(self):
         from modlab.modpack import safe_jar_name
-        self.assertEqual(safe_jar_name('../../etc/x.jar'), 'x.jar')
-        for bad in ('', '..', '.hidden.jar', 'virus.exe'):
+        self.assertEqual(safe_jar_name('sodium-fabric-0.5.13+mc1.20.1.jar'), 'sodium-fabric-0.5.13+mc1.20.1.jar')
+        for bad in ('', '..', '.hidden.jar', 'virus.exe', '../../etc/x.jar', 'a\\b.jar', 'NUL.jar', 'x?.jar'):
             with self.assertRaises(CatalogError):
                 safe_jar_name(bad)
 

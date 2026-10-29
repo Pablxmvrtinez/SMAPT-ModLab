@@ -207,7 +207,7 @@ def instance_info(launcher, folder):
 
 
 def instances(folders=None):
-    result = []
+    result, seen = [], set()
     for launcher, base in folders or launcher_folders():
         try:
             if not base.is_dir():
@@ -217,7 +217,15 @@ def instances(folders=None):
             continue
         for folder in children:
             info = instance_info(launcher, folder)
-            if info:
+            if not info:
+                continue
+            try:
+                identity = str(Path(info['path']).resolve())
+            except OSError:
+                identity = info['path']
+            # Una misma instancia puede verse por dos rutas (enlaces, Flatpak + nativo).
+            if identity not in seen:
+                seen.add(identity)
                 result.append(info)
     official = Path(os.environ.get('APPDATA') or HOME / 'AppData/Roaming') / '.minecraft' if sys.platform == 'win32' else HOME / '.minecraft'
     if folders is None and (official / 'options.txt').is_file():
@@ -259,6 +267,21 @@ def is_running(path):
     return False
 
 
+def create_graphics_backup(folder, suffix=''):
+    """Carpeta de copia única aunque el reloj tenga poca resolución (Windows)."""
+    base = Path(folder) / BACKUPS
+    base.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+    for index in range(1000):
+        result = base / ((stamp if index == 0 else f'{stamp}_{index:04d}') + suffix)
+        try:
+            result.mkdir(exist_ok=False)
+            return result
+        except FileExistsError:
+            continue
+    raise RuntimeError('Demasiadas copias creadas en el mismo instante.')
+
+
 def _shader_file(folder):
     for name in ('oculus.properties', 'iris.properties'):
         path = folder / 'config' / name
@@ -275,8 +298,7 @@ def apply_graphics(inst, settings):
     if is_running(folder):
         raise RuntimeError('Cierra Minecraft antes de modificar sus gráficos.')
     shader = _shader_file(folder)
-    backup = folder / BACKUPS / datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-    backup.mkdir(parents=True, exist_ok=False)
+    backup = create_graphics_backup(folder)
     shutil.copy2(options, backup / 'options.txt')
     if shader.is_file():
         shutil.copy2(shader, backup / shader.name)
@@ -314,7 +336,8 @@ def apply_graphics(inst, settings):
 def backups(inst):
     folder = Path(inst['path']) / BACKUPS
     try:
-        return sorted((p for p in folder.iterdir() if p.is_dir() and (p / 'options.txt').is_file()), reverse=True)
+        return sorted((p for p in folder.iterdir() if p.is_dir() and not p.is_symlink() and (p / 'options.txt').is_file()),
+                      key=lambda p: p.name, reverse=True)
     except OSError:
         return []
 
@@ -327,8 +350,9 @@ def restore_backup(inst, backup):
         raise ValueError('La copia de seguridad no pertenece a esta instancia.')
     if is_running(folder):
         raise RuntimeError('Cierra Minecraft antes de restaurar sus gráficos.')
-    current = folder / BACKUPS / (datetime.now().strftime('%Y%m%d_%H%M%S_%f') + '_antes-de-restaurar')
-    current.mkdir(parents=True)
+    if not (folder / 'options.txt').is_file():
+        raise ValueError('No se encuentra options.txt en esta instancia.')
+    current = create_graphics_backup(folder, '_antes-de-restaurar')
     shutil.copy2(folder / 'options.txt', current / 'options.txt')
     shutil.copy2(backup / 'options.txt', folder / 'options.txt')
     for name in ('oculus.properties', 'iris.properties'):

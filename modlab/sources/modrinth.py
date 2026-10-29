@@ -1,5 +1,7 @@
 """Catálogo público de Modrinth (API v2). No requiere clave; sí un User-Agent identificable."""
 import json
+import re
+from urllib.parse import urlparse
 
 from modlab import logs, paths
 from modlab.errors import CatalogError, NotFoundError
@@ -20,6 +22,52 @@ TTL_TAGS = 24 * 3600
 TTL_SEARCH = 10 * 60
 TTL_PROJECT = 30 * 60
 BATCH = 100
+SAFE_ID = re.compile(r'[A-Za-z0-9_-]{1,100}')
+HEX40 = re.compile(r'[0-9a-f]{40}')
+HEX128 = re.compile(r'[0-9a-f]{128}')
+# Entorno de cada versión según Modrinth → flags cliente/servidor del formato .mrpack.
+# «server_only» también funciona en un mundo individual, así que el cliente queda como opcional.
+ENVIRONMENT_SIDES = {
+    'client_and_server': ('required', 'required'),
+    'client_only': ('required', 'unsupported'),
+    'client_only_server_optional': ('required', 'optional'),
+    'singleplayer_only': ('required', 'unsupported'),
+    'server_only': ('optional', 'required'),
+    'server_only_client_optional': ('optional', 'required'),
+    'dedicated_server_only': ('unsupported', 'required'),
+    'client_or_server': ('required', 'optional'),
+    'client_or_server_prefers_both': ('required', 'required'),
+    'unknown': ('required', 'required'),
+}
+
+
+def safe_id(value):
+    """Los IDs viajan en la ruta de la URL: solo se admiten caracteres de identificador."""
+    value = str(value)
+    if not SAFE_ID.fullmatch(value):
+        raise CatalogError('ID de Modrinth no válido.')
+    return value
+
+
+def environment_sides(environment, client_side='', server_side=''):
+    if environment in ENVIRONMENT_SIDES:
+        client, server = ENVIRONMENT_SIDES[environment]
+        return {'client': client, 'server': server}
+    sides = ('required', 'optional', 'unsupported')
+    if client_side in sides and server_side in sides:
+        return {'client': client_side, 'server': server_side}
+    return {'client': 'required', 'server': 'required'}
+
+
+def verifiable(file):
+    """Archivo JAR con hashes completos, tamaño y descarga oficial de cdn.modrinth.com."""
+    hashes = file.get('hashes') or {}
+    url = urlparse(file.get('url', ''))
+    name = file.get('filename', '')
+    return (name.endswith('.jar') and '/' not in name and '\\' not in name
+            and url.scheme == 'https' and url.hostname == 'cdn.modrinth.com'
+            and bool(HEX40.fullmatch(hashes.get('sha1', ''))) and bool(HEX128.fullmatch(hashes.get('sha512', '')))
+            and type(file.get('size')) is int and file['size'] > 0)
 
 
 def normalize(hit):
@@ -45,8 +93,8 @@ def normalize(hit):
 
 
 def normalize_version(raw):
-    files = raw.get('files') or []
-    primary = next((f for f in files if f.get('primary')), files[0] if files else {})
+    files = sorted(raw.get('files') or [], key=lambda f: not f.get('primary'))
+    primary = next((f for f in files if verifiable(f)), {})
     hashes = primary.get('hashes') or {}
     return {'id': raw['id'], 'project_id': raw.get('project_id'), 'name': raw.get('name') or raw.get('version_number', ''),
             'version_number': raw.get('version_number', ''), 'filename': primary.get('filename', ''),
@@ -55,7 +103,8 @@ def normalize_version(raw):
             'loaders': [LOADER_BY_SLUG.get(l, l) for l in raw.get('loaders') or []],
             'size': primary.get('size') or 0, 'download_url': primary.get('url', ''),
             'sha1': hashes.get('sha1', ''), 'sha512': hashes.get('sha512', ''),
-            'available': raw.get('status', 'listed') in ('listed', 'archived', 'unlisted'),
+            'available': raw.get('status') in (None, 'listed') and bool(primary),
+            'environment': raw.get('environment', ''),
             'dependencies': [{'project_id': d.get('project_id'), 'version_id': d.get('version_id'),
                               'type': d.get('dependency_type', 'optional')} for d in raw.get('dependencies') or []]}
 
@@ -104,7 +153,7 @@ class ModrinthClient(CatalogSource):
                 'pagination': {'index': data.get('offset', index), 'totalCount': data.get('total_hits', 0)}}
 
     def mod(self, pid):
-        raw = self.get(f'/project/{pid}', ttl=TTL_PROJECT)
+        raw = self.get(f'/project/{safe_id(pid)}', ttl=TTL_PROJECT)
         if raw.get('project_type') != 'mod':
             raise CatalogError('El proyecto de Modrinth no es un mod.')
         return normalize(raw)
@@ -113,12 +162,12 @@ class ModrinthClient(CatalogSource):
         ids = list(dict.fromkeys(i for i in ids if i))
         result = []
         for start in range(0, len(ids), BATCH):
-            rows = self.get('/projects', ttl=TTL_PROJECT, ids=json.dumps(ids[start:start + BATCH]))
+            rows = self.get('/projects', ttl=TTL_PROJECT, ids=json.dumps([safe_id(i) for i in ids[start:start + BATCH]]))
             result += [normalize(r) for r in rows if r.get('project_type') == 'mod']
         return result
 
     def description(self, pid):
-        return {'format': 'markdown', 'text': self.get(f'/project/{pid}', ttl=TTL_PROJECT).get('body', '')}
+        return {'format': 'markdown', 'text': self.get(f'/project/{safe_id(pid)}', ttl=TTL_PROJECT).get('body', '')}
 
     def versions(self, pid, minecraft='', loader='', index=0, page_size=50):
         params = {}
@@ -126,7 +175,7 @@ class ModrinthClient(CatalogSource):
             params['loaders'] = json.dumps([LOADERS[loader]])
         if minecraft:
             params['game_versions'] = json.dumps([minecraft])
-        rows = self.get(f'/project/{pid}/version', ttl=TTL_SEARCH, **params)
+        rows = self.get(f'/project/{safe_id(pid)}/version', ttl=TTL_SEARCH, **params)
         files = [normalize_version(r) for r in rows if r.get('files')]
         return {'files': files[index:index + page_size], 'total': len(files)}
 
@@ -134,14 +183,17 @@ class ModrinthClient(CatalogSource):
         if loader not in LOADERS:
             raise CatalogError('Cargador no admitido.')
         if file_id:
-            version = normalize_version(self.get(f'/version/{file_id}', ttl=TTL_PROJECT))
-            if version['project_id'] != pid or minecraft not in version['game_versions'] or loader not in version['loaders']:
+            version = normalize_version(self.get(f'/version/{safe_id(file_id)}', ttl=TTL_PROJECT))
+            if (version['project_id'] != pid or minecraft not in version['game_versions']
+                    or loader not in version['loaders'] or not version['available']):
                 raise CatalogError(f'La versión elegida no es compatible con {minecraft} / {loader}.')
             return version
-        files = [f for f in self.versions(pid, minecraft, loader, page_size=1000)['files']
-                 if f['available'] and f['filename'].endswith('.jar')]
+        files = [f for f in self.versions(pid, minecraft, loader, page_size=1000)['files'] if f['available']]
+        # Modrinth puede listar betas más recientes que la versión final: se prefiere la estable
+        # y, si no hay ninguna, la beta más reciente. Las alfa solo con permiso explícito.
         stable = [f for f in files if f['release'] == 'release']
-        chosen = stable or (files if allow_unstable else [])
+        beta = [f for f in files if f['release'] == 'beta']
+        chosen = stable or beta or (files if allow_unstable else [])
         if not chosen:
             raise CatalogError(f'No hay archivo estable compatible para {pid} en Minecraft {minecraft} / {loader}.')
         return max(chosen, key=lambda f: f['date'])
@@ -172,7 +224,7 @@ class ModrinthClient(CatalogSource):
         missing = [d['version_id'] for p in pinned for d in p['file']['dependencies'] if not d['project_id'] and d.get('version_id')]
         if not missing:
             return
-        rows = self.get('/versions', ttl=TTL_PROJECT, ids=json.dumps(list(dict.fromkeys(missing))[:BATCH]))
+        rows = self.get('/versions', ttl=TTL_PROJECT, ids=json.dumps([safe_id(v) for v in dict.fromkeys(missing)][:BATCH]))
         owners = {r['id']: r.get('project_id') for r in rows}
         for p in pinned:
             for d in p['file']['dependencies']:

@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QFileDialog, QHBoxLayout, QHea
 
 from modlab import downloads as downloader
 from modlab.modpack import audit_pack, build_mrpack, build_pack, resolve_loader_version
+from modlab.mrpack_validator import validate_exported_mrpack
 from modlab.project import Pack
 from modlab.sources import LABELS as SOURCE_LABELS
 from modlab.ui.pages import plain_page
@@ -57,6 +58,7 @@ class PackPage(QWidget):
         self.loader_build = QLineEdit()
         self.loader_build.setPlaceholderText('Cargador: automático')
         self.loader_build.setToolTip('Versión exacta del cargador. Vacío = consultar la versión recomendada oficial.')
+        self.loader_build.textChanged.connect(lambda t: setattr(win.pack, 'loader_version', t.strip()))
         fields.addWidget(self.loader_build, 1)
         info_layout.addLayout(fields)
         self.summary = label('', 'muted')
@@ -73,6 +75,8 @@ class PackPage(QWidget):
         menu = QMenu(self.export_button)
         menu.addAction('Modpack de CurseForge (.zip)', lambda: self.export('curseforge'))
         menu.addAction('Modpack de Modrinth (.mrpack)', lambda: self.export('modrinth'))
+        menu.addSeparator()
+        menu.addAction('Verificar un .mrpack guardado…', self.verify_mrpack)
         self.export_button.setMenu(menu)
         bar.addWidget(self.export_button)
         self.download_button = button('Descargar mods', 'download')
@@ -148,6 +152,8 @@ class PackPage(QWidget):
             self.version.setText(pack.version)
         if pack.author and self.author.text() != pack.author:
             self.author.setText(pack.author)
+        if self.loader_build.text().strip() != pack.loader_version:
+            self.loader_build.setText(pack.loader_version)
         counts = {s: len(pack.by_source(s)) for s in ('curseforge', 'modrinth')}
         self.filters.set_text('all', f'Todos  {len(pack)}')
         self.filters.set_text('curseforge', f"CurseForge  {counts['curseforge']}")
@@ -359,6 +365,23 @@ class PackPage(QWidget):
                 QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(result['path']).parent)))
         self.win.run(work, done, key='pack', label='Exportando modpack', owner=self)
         self.update_buttons()
+
+    def verify_mrpack(self):
+        path, _ = QFileDialog.getOpenFileName(self, 'Verificar modpack', self.win.settings['last_folder'],
+                                              'Modpack de Modrinth (*.mrpack)')
+        if not path:
+            return
+
+        def done(report):
+            QMessageBox.information(self, 'Modpack válido',
+                                    f"{Path(path).name}\n\n{report['mods']} mods · Minecraft {report['minecraft']} · "
+                                    f"{report['loader']}\n\nSe revisaron la estructura, las rutas, los hashes, las URL "
+                                    'oficiales y los entornos. No se descargaron mods ni se modificó el archivo.')
+
+        def failed(message):
+            QMessageBox.warning(self, 'El modpack no es válido', message)
+        self.win.run(lambda p, c: validate_exported_mrpack(path), done, failed, key='verify', label='Verificando .mrpack',
+                     owner=self)
 
     def download(self):
         pack = self.win.pack

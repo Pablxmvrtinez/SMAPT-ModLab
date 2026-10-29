@@ -67,7 +67,7 @@ class ModrinthPackTests(unittest.TestCase):
                          version='1.2.0', summary='Chill')
             with ZipFile(path) as z:
                 index = json.loads(z.read('modrinth.index.json'))
-                self.assertIn('overrides/', z.namelist())
+                self.assertEqual(z.namelist(), ['modrinth.index.json'])
         self.assertEqual(index['formatVersion'], 1)
         self.assertEqual(index['game'], 'minecraft')
         self.assertEqual(index['versionId'], '1.2.0')

@@ -54,20 +54,67 @@ class ModrinthTests(unittest.TestCase):
         self.assertEqual(pinned['file_id'], 'new')
         self.assertEqual(json.loads(http.calls[0]['params']['loaders']), ['fabric'])
 
-    def test_beta_only_project_fails_without_permission(self):
+    def test_beta_is_used_only_when_no_release_exists(self):
         mr, _ = client({('GET', '/v2/project/AANobbMI/version'): [version('b', kind='beta')]})
+        self.assertEqual(mr.pin(normalize(hit()), '1.20.1', 'Fabric')['release'], 'beta')
+        mr, _ = client({('GET', '/v2/project/AANobbMI/version'): [version('a', kind='alpha')]})
         with self.assertRaises(CatalogError):
             mr.pin(normalize(hit()), '1.20.1', 'Fabric')
+        self.assertEqual(mr.pin_many([normalize(hit())], '1.20.1', 'Fabric', allow_unstable=True)[0][0]['file_id'], 'a')
+
+    def test_release_without_verifiable_jar_falls_back_to_beta(self):
+        broken = version('rel', date='2026-09-01')
+        broken['files'][0]['url'] = 'https://evil.example/sodium.jar'
+        unlisted = version('hidden', date='2026-10-01')
+        unlisted['status'] = 'unlisted'
+        mr, _ = client({('GET', '/v2/project/AANobbMI/version'): [broken, unlisted, version('b', kind='beta')]})
+        self.assertEqual(mr.pin(normalize(hit()), '1.20.1', 'Fabric')['file_id'], 'b')
+
+    def test_unverifiable_files_are_ignored(self):
+        from modlab.sources.modrinth import verifiable
+        good = {'filename': 'a.jar', 'url': 'https://cdn.modrinth.com/data/a/a.jar', 'size': 5,
+                'hashes': {'sha1': 'a' * 40, 'sha512': 'b' * 128}}
+        self.assertTrue(verifiable(good))
+        for change in ({'url': 'http://cdn.modrinth.com/a.jar'}, {'filename': '../a.jar'}, {'size': 0},
+                       {'hashes': {'sha1': 'zz', 'sha512': 'b' * 128}}, {'filename': 'a.zip'}):
+            self.assertFalse(verifiable(dict(good, **change)), change)
+
+    def test_ids_are_validated_before_building_urls(self):
+        mr, http = client({})
+        for bad in ('../../etc', 'a b', 'x/y'):
+            with self.assertRaises(CatalogError):
+                mr.mod(bad)
+        self.assertFalse(http.calls)
+
+    def test_every_environment_maps_to_pack_sides(self):
+        from modlab.sources.modrinth import ENVIRONMENT_SIDES, environment_sides
+        for environment, (client_side, server_side) in ENVIRONMENT_SIDES.items():
+            self.assertEqual(environment_sides(environment), {'client': client_side, 'server': server_side})
+        self.assertEqual(environment_sides('server_only'), {'client': 'optional', 'server': 'required'})
+        self.assertEqual(environment_sides('', 'required', 'unsupported'), {'client': 'required', 'server': 'unsupported'})
+        self.assertEqual(environment_sides(None), {'client': 'required', 'server': 'required'})
+
+    def test_dependency_pinned_to_a_specific_version(self):
+        dep = {'project_id': 'P7dR8mSH', 'version_id': 'api-old', 'dependency_type': 'required'}
+        old_api = version('api-old', pid='P7dR8mSH', date='2025-01-01')
+        routes = {('GET', '/v2/project/AANobbMI/version'): [version('v1', deps=[dep])],
+                  ('GET', '/v2/projects'): [dict(hit('P7dR8mSH', 'fabric-api'), project_type='mod', id='P7dR8mSH')],
+                  ('GET', '/v2/version/api-old'): old_api,
+                  ('GET', '/v2/project/P7dR8mSH/version'): [version('api-new', pid='P7dR8mSH', date='2026-05-01')]}
+        mr, _ = client(routes)
+        report = mr.resolve_report([normalize(hit())], '1.20.1', 'Fabric')
+        self.assertEqual(report['dependencies'][0]['file_id'], 'api-old')
 
     def test_dependencies_by_version_are_mapped_to_projects(self):
         dep = {'project_id': None, 'version_id': 'apiv', 'dependency_type': 'required'}
         routes = {('GET', '/v2/project/AANobbMI/version'): [version('v1', deps=[dep])],
                   ('GET', '/v2/versions'): [{'id': 'apiv', 'project_id': 'P7dR8mSH'}],
                   ('GET', '/v2/projects'): [dict(hit('P7dR8mSH', 'fabric-api'), project_type='mod', id='P7dR8mSH')],
-                  ('GET', '/v2/project/P7dR8mSH/version'): [version('api1', pid='P7dR8mSH')]}
+                  ('GET', '/v2/version/apiv'): version('apiv', pid='P7dR8mSH')}
         mr, _ = client(routes)
         report = mr.resolve_report([normalize(hit())], '1.20.1', 'Fabric')
         self.assertEqual([m['project_id'] for m in report['mods']], ['AANobbMI', 'P7dR8mSH'])
+        self.assertEqual(report['dependencies'][0]['file_id'], 'apiv')
         self.assertEqual(report['dependencies'][0]['slug'], 'fabric-api')
 
     def test_declared_incompatibility(self):

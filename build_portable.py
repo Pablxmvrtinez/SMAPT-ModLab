@@ -1,7 +1,9 @@
 """Construye el paquete portable en el sistema de destino (Linux o Windows).
 
-    python build_portable.py           edición completa (incluye IA local: modelo + llama-cpp-python)
-    python build_portable.py --lite    edición ligera (sin IA, mucho más pequeña)
+    python build_portable.py              edición pública: sin claves y sin IA (la que se publica)
+    python build_portable.py --with-ai    edición con IA local (modelo + llama-cpp-python, unos 2,5 GB más)
+
+SMAPT_INCLUDE_AI=1 equivale a --with-ai.
 
 SMAPT_CATALOG_URL (opcional) se guarda en app-config.json para que el paquete use la pasarela del
 desarrollador. La clave de CurseForge nunca se incluye: el script se niega a construir si la ve en la URL.
@@ -78,13 +80,14 @@ def collect_licenses(folder):
 
 
 def main():
-    lite = '--lite' in sys.argv
-    if not lite:
+    with_ai = '--with-ai' in sys.argv or os.getenv('SMAPT_INCLUDE_AI') == '1'
+    lite = not with_ai
+    if with_ai:
         if not MODEL.is_file() or MODEL.stat().st_size != MODEL_SIZE:
-            raise SystemExit('Falta el modelo integrado. Ejecuta python scripts/fetch_model.py o usa --lite.')
+            raise SystemExit('Falta el modelo integrado. Ejecuta python scripts/fetch_model.py.')
         if importlib.util.find_spec('llama_cpp') is None:
-            raise SystemExit('Instala requirements.txt (llama-cpp-python) para la edición completa o usa --lite.')
-    name = 'SMAPT-ModLab-Lite' if lite else 'SMAPT-ModLab'
+            raise SystemExit('Instala requirements-ai.txt (llama-cpp-python) para la edición con IA.')
+    name = 'SMAPT-ModLab-IA' if with_ai else 'SMAPT-ModLab'
     separator = os.pathsep
     with tempfile.TemporaryDirectory(prefix='smapt-build-') as temp:
         temp = Path(temp)

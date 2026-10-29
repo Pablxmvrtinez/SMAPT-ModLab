@@ -2,7 +2,7 @@
 
 El paquete portable contiene Python, PySide6/Qt (incluidos QtSvg, QtNetwork y los complementos de formatos de
 imagen), Requests y psutil, además de sus bibliotecas transitivas. No contiene agentes externos, claves de API
-ni archivos de mods. La edición ligera (`SMAPT-ModLab-Lite`) no incluye IA; la edición completa sí incluye el
+ni archivos de mods. La edición pública (`SMAPT-ModLab`) no incluye IA; la edición con IA (`SMAPT-ModLab-IA`) sí incluye el
 motor y el modelo local descritos abajo.
 
 - Python: licencia PSF. https://docs.python.org/3/license.html

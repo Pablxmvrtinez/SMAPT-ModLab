@@ -58,7 +58,7 @@ class CatalogSource:
         if len(set(ids)) != len(ids):
             raise CatalogError('El pack contiene proyectos duplicados.')
         selected = set(ids)
-        resolved, missing, required_by = {}, [], {}
+        resolved, missing, required_by, requested = {}, [], {}, {}
         pending = list(mods)
         while pending:
             check()
@@ -78,6 +78,14 @@ class CatalogSource:
                     pid = dep.get('project_id')
                     if dep.get('type') != 'required' or pid is None:
                         continue
+                    version = dep.get('version_id')
+                    if version and pid not in selected:
+                        # Algunas dependencias exigen una versión concreta (Modrinth): se fija esa.
+                        previous = requested.setdefault(pid, version)
+                        if previous != version:
+                            missing.append({'project_id': pid, 'title': str(pid),
+                                            'reason': f'{item["title"]} y {required_by.get(pid, "otro mod")} exigen '
+                                                      'versiones distintas de esta dependencia.'})
                     if pid not in resolved and pid not in wanted and not any(f['project_id'] == pid for f in missing):
                         wanted.append(pid)
                         required_by.setdefault(pid, item['title'])
@@ -90,7 +98,7 @@ class CatalogSource:
                 found = {m['project_id']: m for m in self.mods(wanted)}
                 for pid in wanted:
                     if pid in found:
-                        pending.append(found[pid])
+                        pending.append(dict(found[pid], file_id=requested[pid]) if pid in requested else found[pid])
                     else:
                         missing.append({'project_id': pid, 'title': str(pid),
                                         'reason': f'Dependencia no disponible en {self.label} (requerida por {required_by[pid]}).'})

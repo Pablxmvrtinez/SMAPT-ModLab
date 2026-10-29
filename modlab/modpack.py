@@ -1,5 +1,5 @@
 """Comprobación del pack, versiones de cargador y exportación a CurseForge (.zip) y Modrinth (.mrpack)."""
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from urllib.parse import urlparse
 from zipfile import ZIP_DEFLATED, ZipFile
 import html
@@ -11,28 +11,34 @@ import requests
 
 from modlab import USER_AGENT
 from modlab.errors import CatalogError
+from modlab.mrpack_validator import MrpackValidationError, safe_mod_filename, validate_exported_mrpack
+from modlab.sources.modrinth import environment_sides
 
 CURSEFORGE_LOADERS = ('forge', 'fabric', 'neoforge')
 MRPACK_LOADERS = {'Forge': 'forge', 'NeoForge': 'neoforge', 'Fabric': 'fabric-loader', 'Quilt': 'quilt-loader'}
 MRPACK_HOSTS = ('cdn.modrinth.com', 'github.com', 'raw.githubusercontent.com', 'gitlab.com')
 LOADER_VERSION = re.compile(r'\d+(?:\.\d+)+(?:[-+][A-Za-z0-9.]+)?')
-ENV = {'required': 'required', 'optional': 'optional', 'unsupported': 'unsupported'}
 
 
 def _check_common(name, mods, loader_version):
     if not name.strip() or not mods:
         raise ValueError('Indica el nombre del pack y añade mods.')
+    if len(name.strip()) > 120:
+        raise ValueError('El nombre del pack puede tener como máximo 120 caracteres.')
     if not LOADER_VERSION.fullmatch(loader_version or ''):
         raise ValueError('La versión del cargador no es válida.')
 
 
-def _write_atomic(destination, writer):
-    """Escribe en un temporal y lo mueve al final: un error nunca deja un archivo a medias."""
+def _write_atomic(destination, writer, validate=None):
+    """Escribe en un temporal, lo valida y lo mueve al final: un error nunca deja un archivo a medias."""
     destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='.smapt-', dir=destination.parent) as temp:
         archive = Path(temp) / 'pack.zip'
         with ZipFile(archive, 'w', ZIP_DEFLATED) as z:
             writer(z)
+        if validate:
+            validate(archive)
         archive.replace(destination)
     return destination
 
@@ -70,9 +76,10 @@ def build_pack(destination, name, minecraft, loader, loader_version, mods, progr
 
 
 def safe_jar_name(filename):
-    name = PurePosixPath(str(filename).replace('\\', '/')).name
-    if not name or name in ('.', '..') or not name.endswith('.jar') or name.startswith('.'):
-        raise CatalogError(f'Nombre de archivo no válido: {filename!r}')
+    name = str(filename)
+    if (not name or '/' in name or '\\' in name or not name.endswith('.jar') or name.startswith('.')
+            or not safe_mod_filename(name)):
+        raise CatalogError(f'Nombre de archivo no válido en Windows o Linux: {filename!r}')
     return name
 
 
@@ -99,11 +106,9 @@ def build_mrpack(destination, name, minecraft, loader, loader_version, mods, pro
         entry = {'path': 'mods/' + safe_jar_name(file.get('filename')),
                  'hashes': {'sha1': file['sha1'], 'sha512': file['sha512']},
                  'downloads': [url], 'fileSize': int(file.get('size') or 0)}
-        client_side, server_side = ENV.get(mod.get('client_side')), ENV.get(mod.get('server_side'))
-        if client_side and server_side:
-            entry['env'] = {'client': client_side, 'server': server_side}
+        entry['env'] = environment_sides(file.get('environment'), mod.get('client_side'), mod.get('server_side'))
         files.append(entry)
-    paths = [f['path'] for f in files]
+    paths = [f['path'].casefold() for f in files]
     if len(set(paths)) != len(paths):
         raise CatalogError('Dos mods usan el mismo nombre de archivo; revisa el pack.')
     index = {'formatVersion': 1, 'game': 'minecraft', 'versionId': version.strip() or '1.0.0', 'name': name.strip(),
@@ -113,8 +118,13 @@ def build_mrpack(destination, name, minecraft, loader, loader_version, mods, pro
 
     def write(z):
         z.writestr('modrinth.index.json', json.dumps(index, indent=2, ensure_ascii=False))
-        z.writestr('overrides/', '')
-    path = _write_atomic(destination, write)
+
+    def validate(archive):
+        try:
+            validate_exported_mrpack(archive, expected_count=len(files))
+        except MrpackValidationError as exc:
+            raise CatalogError('El paquete generado no superó la validación: ' + str(exc)) from None
+    path = _write_atomic(destination, write, validate)
     return {'path': str(path), 'mods': len(resolved)}
 
 
