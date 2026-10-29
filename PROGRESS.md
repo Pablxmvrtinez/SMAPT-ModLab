@@ -70,21 +70,24 @@ tarea en segundo plano a la vez y la interfaz entera en `app.py`.
   - requirements-lite.txt (sin IA) + requirements.txt (completa); build_portable.py con `--lite` e iconos generados.
   - CI: `tests.yml` (Linux y Windows, Python 3.11/3.12) en cada push/PR; `portable.yml` con edición ligera/completa.
   - Medido (datos reales de Modrinth): ventana visible 0,30 s; 50 tarjetas 0,35 s; 273 MB tras 6 páginas; CPU en reposo 0,7 %.
-- [~] Fase 5 · Funciones restantes y errores (en curso)
-  - Hecho: IA local verificada con el modelo real (`--verify-ai`, 3 s); navegación «Volver» simplificada;
-    autor y descripción del pack coherentes; README y THIRD_PARTY actualizados.
-  - Hecho: pasarela probada como proceso real contra la API de CurseForge con clave inválida → 403 claro, sin filtrar la clave.
-  - Pendiente: revisar el resultado de la propuesta real de la IA con Modrinth (script de prueba en segundo plano).
-- [ ] Fase 6 · Pruebas, compilación y documentación
-  - Pendiente: mover la compilación anterior (`dist/SMAPT-ModLab`, 16-oct) a una carpeta de copia y
-    construir `python build_portable.py --lite` y la edición completa con `.venv` (PyInstaller 6.22 y
-    llama-cpp-python 0.3.36 ya instalados en `.venv`).
-  - Pendiente: ejecutar el CI (`tests.yml`) en GitHub para verificar Windows.
+- [x] Fase 5 · Funciones restantes y errores
+  - IA local verificada con el modelo real (`--verify-ai`) desde el código y desde el paquete con IA.
+  - Prueba real de propuesta con IA sobre Modrinth: falló en el primer lote por un descarte repetido del modelo;
+    corregido (IDs 1..20 por lote, descartes tolerantes, fichas sin valorar descartadas con aviso).
+  - Navegación «Volver» simplificada; autor, descripción y build manual del cargador coherentes en el pack.
+  - Pasarela probada como proceso real contra la API de CurseForge (clave inválida → 403 claro, sin filtrar la clave).
+  - Fusión de `origin/main` (validador .mrpack, nombres Windows, entornos, copias sin colisión, seguridad de proyectos).
+- [x] Fase 6 · Pruebas, compilación y documentación
+  - Compilación anterior (16-oct) conservada en `dist/anterior-1.0-2026-10-16/`.
+  - Edición pública Linux: `dist/SMAPT-ModLab-linux-x86_64.tar.gz` (115 MB, 276 MB descomprimida), arranque `--smoke` OK,
+    plugins WebP/SVG incluidos, sin claves ni modelo.
+  - Edición con IA Linux: `dist/SMAPT-ModLab-IA-linux-x86_64.tar.gz` (2,7 GB), `--smoke` y `--verify-ai` OK.
+  - Windows: se compila y prueba en GitHub Actions (`portable.yml`, `tests.yml`); no se ha probado en un equipo real.
 
 ## Estado de las pruebas
 
-- 111 pruebas unitarias en verde (sin red), arranque `--smoke` correcto, pyflakes limpio.
-- Modrinth verificado en vivo con `scripts/check_live.py modrinth`.
+- 139 pruebas unitarias en verde (sin red), arranque `--smoke` correcto, pyflakes limpio.
+- Modrinth verificado en vivo con `scripts/check_live.py modrinth` y `scripts/modrinth_live_smoke.py`.
 - Windows: no probado en una máquina real; el workflow `tests.yml` lo cubrirá en GitHub Actions.
 
 ## Bloqueos
