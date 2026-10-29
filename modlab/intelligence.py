@@ -110,18 +110,18 @@ class ExperienceDesigner:
             for mod in row:
                 if mod and len(candidates)<budget:candidates[mod['project_id']]=mod
         if not candidates:raise CatalogError(getattr(self.catalog,'label','El catálogo')+' no devolvió mods compatibles para esta experiencia.')
-        ranked=[];all_cards=list(candidates.values());warnings=[];evaluated_count=0
-        # IDs locales cortos: sirven para CurseForge (enteros) y Modrinth (cadenas) por igual.
-        alias={i:m['project_id'] for i,m in enumerate(all_cards,1)};local={pid:i for i,pid in alias.items()}
+        ranked=[];all_cards=list(candidates.values());warnings=[];evaluated_count=0;unevaluated=0
         for start in range(0,len(all_cards),20):
             batch=all_cards[start:start+20]
+            # IDs cortos 1..20 por lote: sirven para CurseForge (enteros) y Modrinth (cadenas) y un modelo pequeño los copia mejor.
+            alias={i:m['project_id'] for i,m in enumerate(batch,1)}
             progress(f'La IA evalúa cómo encajan los mods · {min(start+20,len(all_cards))}/{len(all_cards)}')
-            cards=[{'id':local[m['project_id']],'title':m['title'],'summary':m['description'],
-                    'categories':[c['name'] for c in m['categories']]} for m in batch]
+            cards=[{'id':i,'title':m['title'],'summary':m['description'],
+                    'categories':[c['name'] for c in m['categories']]} for i,m in enumerate(batch,1)]
             response=self.ai.complete(RANK_PROMPT,{'original_request':phrase,'experience':plan,'cards':cards},RANK_SCHEMA,progress)
             evaluations=response.get('selected',[])
             skipped=response.get('skipped',[])
-            ids={local[m['project_id']] for m in batch};seen=set()
+            ids=set(alias);seen=set()
             for value in evaluations:
                 pid=value.get('id')
                 if type(pid)!=int or pid not in ids or pid in seen:
@@ -133,10 +133,9 @@ class ExperienceDesigner:
                     if not str(value.get('reason','')).strip():raise CatalogError('Falta justificar una recomendación.')
                     ranked.append(dict(candidates[alias[pid]],reason=value['reason'],role=value['role'],
                                        caveat=value['caveat'],score=value['score']))
-            for pid in skipped:
-                if type(pid)!=int or pid not in ids or pid in seen:raise CatalogError('La IA devolvió un descarte incoherente.')
-                seen.add(pid)
-            if seen!=ids:raise CatalogError('La IA dejó fichas sin evaluar. No se mostrará una evaluación incompleta.')
+            # Descartar no añade nada al pack: un descarte repetido o desconocido se ignora en vez de anular la propuesta.
+            seen|={pid for pid in skipped if type(pid)==int and pid in ids}
+            unevaluated+=len(ids-seen)
             evaluated_count+=len(batch)
             if len(ranked)>=max(limit,round(limit*1.25)):break
         # Primero las mejores propuestas; la validación de archivos es independiente de la IA.
@@ -157,6 +156,7 @@ class ExperienceDesigner:
                 rejected.append({'title':mod['title'],'reason':str(exc)});continue
             chosen.append(pinned);roles[role]=roles.get(role,0)+1
         if not chosen:raise CatalogError('La IA no pudo justificar mods adecuados con archivos compatibles. Prueba una descripción más concreta.')
+        if unevaluated:warnings.append(f'La IA no valoró {unevaluated} fichas; se descartaron sin proponerlas.')
         warnings+=['Las recomendaciones expresan el criterio del modelo local, no una garantía de compatibilidad o rendimiento.',
                    'Las dependencias obligatorias se resuelven al exportar; prueba el juego antes de compartir el pack.']
         return {'plan':plan,'mods':chosen,'candidate_count':evaluated_count,'rejected':rejected,'warnings':warnings}

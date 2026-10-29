@@ -33,9 +33,15 @@ class DesignerTests(unittest.TestCase):
     def test_invented_id_is_rejected(self):
         self.evals['selected'][0]['id']=999
         with self.assertRaisesRegex(CatalogError,'inexistente'):self.designer.propose('Construir','1.20.1','Forge',80)
-    def test_incomplete_evaluation_is_rejected(self):
+    def test_unevaluated_cards_are_discarded_with_warning(self):
         self.evals['selected'].pop()
-        with self.assertRaisesRegex(CatalogError,'sin evaluar'):self.designer.propose('Construir','1.20.1','Forge',80)
+        result=self.designer.propose('Construir','1.20.1','Forge',80)
+        self.assertEqual([m['project_id'] for m in result['mods']],[10])
+        self.assertTrue(any('no valoró 1' in w for w in result['warnings']))
+    def test_noisy_skip_list_does_not_abort(self):
+        self.evals['skipped']=[1,2,2,99,'x']
+        result=self.designer.propose('Construir','1.20.1','Forge',80)
+        self.assertEqual(len(result['mods']),2)
     def test_selection_limit_is_a_ceiling(self):
         result=self.designer.propose('Construir','1.20.1','Forge',1)
         self.assertEqual(len(result['mods']),1)
