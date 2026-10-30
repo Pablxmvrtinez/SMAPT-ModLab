@@ -112,8 +112,9 @@ Para cada rechazo:
 - concept: el tema rechazado, en español y en pocas palabras.
 - strength: "total" si no quiere nada de eso; "moderacion" si solo pide que no sea mucho o muy intenso
   ("demasiados", "excesivamente", "muy").
-- terms: 2-6 palabras en minúscula, en inglés y en español, que aparecerían en la descripción de un mod con ese
-  tema (por ejemplo, para un rechazo a un monstruo concreto, su nombre en singular y plural en ambos idiomas).
+- terms: 3-6 palabras en minúscula, en inglés y en español, que aparecerían en la descripción de un mod con ese
+  tema: no solo el singular y el plural, también sinónimos y conceptos del mismo tema (lo que un jugador
+  consideraría parte de lo que rechaza).
 Si el jugador no rechaza ni limita nada, devuelve "rejections": []. No inventes rechazos.'''
 
 CATEGORY_PROMPT = '''Asigna a cada requisito del modpack 0-2 categorías del catálogo que describan bien los mods que
@@ -171,6 +172,22 @@ def _plain(value):
     return re.sub(r'[^a-z0-9ñ ]+', ' ', ''.join(c for c in value if not unicodedata.combining(c)))
 
 
+GENERIC_TERMS = {'mechanic', 'mechanics', 'system', 'systems', 'game', 'gameplay', 'mod', 'mods', 'world', 'content',
+                 'feature', 'features', 'item', 'items', 'block', 'blocks', 'new', 'more', 'production', 'producción',
+                 'mecánica', 'mecánicas', 'sistema', 'sistemas', 'juego', 'contenido', 'mundo'}
+
+
+def term_pattern(term):
+    """Palabra completa con singular y plural: «zombies» también encuentra «zombie»."""
+    bases = {term}
+    if term.endswith('s') and len(term) > 4:
+        bases.add(term[:-1])  # zombies → zombie
+    if term.endswith('es') and len(term) > 5:
+        bases.add(term[:-2])  # zombies → zombi (español)
+    alternatives = '|'.join(re.escape(b) for b in sorted(bases, key=len, reverse=True))
+    return re.compile(r'\b(?:' + alternatives + r')(?:s|es)?\b')
+
+
 def _same_word(a, b):
     """Igualdad tolerante con plurales y variantes («zombies» / «zombis», «combate» / «combates»)."""
     common = len(a) if a == b else next((i for i, (x, y) in enumerate(zip(a, b)) if x != y), min(len(a), len(b)))
@@ -210,7 +227,9 @@ def validate_brief(raw, description, categories=()):
         raise CatalogError('La IA no devolvió un plan con requisitos.')
     exclusions, limits, ignored = [], [], []
     for item in raw.get('rejections') or raw.get('exclusions') or []:
-        terms = sorted({_clean(t, 30).casefold() for t in item.get('terms') or [] if len(_clean(t, 30)) >= 3})
+        # Las palabras demasiado genéricas («mechanics») no sirven como filtro: descartarían mods válidos.
+        terms = sorted({_clean(t, 30).casefold() for t in item.get('terms') or []
+                        if len(_clean(t, 30)) >= 3 and _clean(t, 30).casefold() not in GENERIC_TERMS})
         concept, quote = _clean(item.get('concept'), 50), _clean(item.get('quote'), 120)
         if not concept or not terms:
             continue
@@ -230,12 +249,12 @@ def validate_brief(raw, description, categories=()):
             low = query.casefold()
             # Ni temas excluidos ni negaciones: un buscador no entiende «no mobs».
             if (query and not QUERY_NEGATION.search(low) and low not in seen_queries
-                    and not any(re.search(r'\b' + re.escape(t) + r'\b', low) for t in banned)):
+                    and not any(term_pattern(t).search(low) for t in banned)):
                 seen_queries.add(low)
                 queries.append(query)
         examples = [_clean(e, 40) for e in item.get('examples') or [] if _clean(e, 40)
                     and not QUERY_NEGATION.search(_clean(e, 40).casefold())
-                    and not any(re.search(r'\b' + re.escape(t) + r'\b', _clean(e, 40).casefold()) for t in banned)]
+                    and not any(term_pattern(t).search(_clean(e, 40).casefold()) for t in banned)]
         if (not queries and not examples) or name.casefold() in seen_names:
             continue
         seen_names.add(name.casefold())
@@ -305,7 +324,7 @@ def excluded_by(mod, exclusions):
         if cats & {c.casefold() for c in exclusion['categories']}:
             return exclusion['concept']
         for term in exclusion['terms']:
-            if re.search(r'\b' + re.escape(term) + r'\b', words):
+            if term_pattern(term).search(words):
                 return exclusion['concept']
     return None
 

@@ -204,6 +204,14 @@ class InterpretationTests(unittest.TestCase):
         self.assertFalse(same_project('Realms', mod('D', 'No Realms Button')))
         self.assertFalse(same_project('Create', mod('E', 'Create: Peaceful Addon Pack')))
 
+    def test_exclusion_terms_cover_singular_and_plural_but_not_generic_words(self):
+        exclusion = [{'concept': 'Zombis', 'terms': ['zombies'], 'categories': []}]
+        self.assertEqual(excluded_by(mod('Z', 'Undead', 'A zombie outbreak'), exclusion), 'Zombis')
+        self.assertIsNone(excluded_by(mod('Y', 'Zombieland Tycoon Hat', 'Cosmetic'), exclusion))
+        raw = dict(brief(), exclusions=[{'quote': 'sin magia', 'concept': 'Magia', 'strength': 'total',
+                                         'terms': ['magic', 'mechanics', 'system']}])
+        self.assertEqual(validate_brief(raw, request().description)['exclusions'][0]['terms'], ['magic'])
+
     def test_exclusion_matches_whole_words(self):
         self.assertEqual(excluded_by(WAND, [{'concept': 'Magia', 'terms': ['magic'], 'categories': []}]), 'Magia')
         self.assertIsNone(excluded_by(mod('M', 'Magical Mystery', 'Tour bus'), [{'concept': 'Magia', 'terms': ['magic'], 'categories': []}]))
