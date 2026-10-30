@@ -99,8 +99,11 @@ exclusiones inventadas, sesgo hacia mods de rendimiento y lotes lentos (≈150 s
 - [x] Interfaz: modos Recomendar / Crear modpack, catálogo, versión, cargador, nº de mods, rendimiento, fases
       con progreso real, interpretación visible, tarjetas con descartar, vista previa editable, exportar,
       panel «Configurar IA».
-- [x] Evaluación semántica real (`scripts/evaluate_ai.py`, 10 descripciones): 5/10 → 6/10 → 6/10 → 9/10;
-      el fallo restante (medieval) era un error de subcadena en el código («lag» en «villages»), corregido.
+- [x] Evaluación semántica real (`scripts/evaluate_ai.py`, 10 descripciones): 5/10 → 6/10 → 6/10 → 9/10 → 9/10
+      → **10/10** con la versión final (rechazos con sinónimos; singular/plural; sin palabras genéricas).
+      `tests/test_ai_real.py` (SMAPT_REAL_AI=1): 3/3 con el modelo real.
+- [x] Interfaz real + IA real (ventana fuera de pantalla): modpack zombi en 181 s, la interfaz nunca se bloqueó
+      más de 69 ms (3616 mediciones), vista previa → Mi modpack → .mrpack exportado desde la interfaz y validado.
 - [x] Extremo a extremo real (`scripts/ai_e2e.py`, Modrinth 1.20.1 Fabric):
       casas (crear) 117-140 mods encontrados → pack equilibrado + Fabric API → .mrpack validado (≈210 s);
       «parecido a Pokémon» → Cobblemon 10/10 sin conocer el nombre; apocalipsis zombi → Zombie Apocalypse Core,
@@ -111,7 +114,7 @@ exclusiones inventadas, sesgo hacia mods de rendimiento y lotes lentos (≈150 s
 
 ## Estado de las pruebas
 
-- 139 pruebas unitarias en verde (sin red), arranque `--smoke` correcto, pyflakes limpio.
+- 168 pruebas unitarias en verde (sin red) + 3 con el modelo real, arranque `--smoke` correcto, pyflakes limpio.
 - Modrinth verificado en vivo con `scripts/check_live.py modrinth` y `scripts/modrinth_live_smoke.py`.
 - Windows: no probado en una máquina real; el workflow `tests.yml` lo cubrirá en GitHub Actions.
 
