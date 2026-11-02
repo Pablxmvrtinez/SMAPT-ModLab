@@ -15,7 +15,7 @@ class MrpackValidationError(ValueError):
 
 
 VALID_SIDES = {"required", "optional", "unsupported"}
-LOADERS = {"fabric-loader", "forge", "neoforge"}
+LOADERS = {"fabric-loader", "forge", "neoforge", "quilt-loader"}
 HEX40 = re.compile(r"[0-9a-f]{40}\Z")
 HEX128 = re.compile(r"[0-9a-f]{128}\Z")
 SAFE_PATH = re.compile(r"mods/[^/\\\x00-\x1f]+\.jar\Z", re.IGNORECASE)

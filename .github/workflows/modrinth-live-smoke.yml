@@ -3,17 +3,19 @@ name: Modrinth - prueba real de exportacion
 on:
   pull_request:
     paths:
-      - "public_catalog.py"
-      - "mrpack_validator.py"
-      - "modpack.py"
+      - "modlab/sources/**"
+      - "modlab/mrpack_validator.py"
+      - "modlab/modpack.py"
+      - "modlab/http.py"
       - "scripts/modrinth_live_smoke.py"
       - ".github/workflows/modrinth-live-smoke.yml"
   push:
     branches: [main]
     paths:
-      - "public_catalog.py"
-      - "mrpack_validator.py"
-      - "modpack.py"
+      - "modlab/sources/**"
+      - "modlab/mrpack_validator.py"
+      - "modlab/modpack.py"
+      - "modlab/http.py"
       - "scripts/modrinth_live_smoke.py"
       - ".github/workflows/modrinth-live-smoke.yml"
   workflow_dispatch:

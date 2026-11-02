@@ -16,9 +16,9 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from modpack import resolve_loader_version
-from public_catalog import PublicCatalog, audit_public_pack, export_mrpack
-from mrpack_validator import validate_exported_mrpack
+from modlab.modpack import build_mrpack, resolve_loader_version  # noqa: E402
+from modlab.mrpack_validator import validate_exported_mrpack  # noqa: E402
+from modlab.sources import ModrinthClient  # noqa: E402
 
 
 def check(condition, message):
@@ -43,8 +43,8 @@ def validate_archive(path, minecraft, loader_version, selected_versions, total):
           "La cantidad de mods del manifiesto no coincide con el análisis.")
     paths = set()
     expected_files = {
-        "mods/" + mod_version["file"]["filename"]: mod_version
-        for mod_version in selected_versions
+        "mods/" + pinned["file"]["filename"]: pinned
+        for pinned in selected_versions
     }
     check(len(expected_files) == len(selected_versions),
           "Los mods seleccionados usan el mismo nombre de archivo.")
@@ -79,9 +79,9 @@ def validate_archive(path, minecraft, loader_version, selected_versions, total):
             expected_version = expected_files[destination]
             expected = expected_version["file"]
             selected_found.add(destination)
-            check(hashes == expected["hashes"]
+            check(hashes == {"sha1": expected["sha1"], "sha512": expected["sha512"]}
                   and item["fileSize"] == expected["size"]
-                  and urls == [expected["url"]],
+                  and urls == [expected["download_url"]],
                   "Un mod seleccionado no coincide con Modrinth.")
             if expected_version["title"] == "Sodium":
                 check(environment["server"] == "unsupported",
@@ -97,32 +97,31 @@ def main():
                         default=Path("artifacts/modrinth-smoke.mrpack"))
     args = parser.parse_args()
     minecraft, loader = "1.20.1", "Fabric"
-    catalog = PublicCatalog()
+    catalog = ModrinthClient(cache=False)
 
     print("Consultando Fabric API y Sodium en Modrinth...", flush=True)
-    selected = [catalog.project("fabric-api"), catalog.project("sodium")]
+    selected = [catalog.mod("fabric-api"), catalog.mod("sodium")]
     check(all(mod["project_id"] for mod in selected)
           and selected[0]["project_id"] != selected[1]["project_id"],
           "Modrinth no devolvió dos proyectos diferentes.")
-    versions = [catalog.version(mod, minecraft, loader) for mod in selected]
-    for mod, version in zip(selected, versions):
-        version["title"] = mod["title"]
-        print("Versión real de " + mod["title"] + ":",
-              version["version_number"], flush=True)
+    versions = [catalog.pin(mod, minecraft, loader) for mod in selected]
+    for pinned in versions:
+        print("Versión real de " + pinned["title"] + ":", pinned["version_number"], flush=True)
 
-    report = audit_public_pack(selected, minecraft, loader, catalog=catalog)
-    check(report["selected"] == len(selected)
-          and report["total"] >= len(selected),
+    report = catalog.resolve_report(selected, minecraft, loader)
+    check(not report["missing"] and not report["conflicts"]
+          and len(report["mods"]) >= len(selected),
           "Auditoría pública inconsistente.")
     print("Dependencias obligatorias adicionales:",
           len(report["dependencies"]), flush=True)
     build = resolve_loader_version(minecraft, loader)
     print("Fabric Loader verificado:", build, flush=True)
 
-    result = export_mrpack(args.output, "SMAPT Modrinth Smoke Test",
-                           minecraft, loader, build, selected, catalog=catalog)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    result = build_mrpack(args.output, "SMAPT Modrinth Smoke Test",
+                          minecraft, loader, build, selected, client=catalog)
     files = validate_archive(args.output, minecraft, build, versions,
-                             report["total"])
+                             len(report["mods"]))
     validation = validate_exported_mrpack(args.output, expected_count=len(files))
     check(result["mods"] == validation["mods"] == len(files),
           "El exportador y los validadores no coinciden.")

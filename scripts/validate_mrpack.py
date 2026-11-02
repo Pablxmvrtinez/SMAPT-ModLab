@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mrpack_validator import MrpackValidationError, validate_exported_mrpack
+from modlab.mrpack_validator import MrpackValidationError, validate_exported_mrpack  # noqa: E402
 
 
 def main():

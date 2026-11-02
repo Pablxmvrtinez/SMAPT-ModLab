@@ -6,9 +6,11 @@ import tempfile
 import unittest
 from zipfile import ZipFile
 
-from mrpack_validator import MrpackValidationError, validate_exported_mrpack
-from public_catalog import PublicCatalogError, export_mrpack
 from unittest.mock import Mock
+
+from modlab.errors import CatalogError
+from modlab.modpack import build_mrpack
+from modlab.mrpack_validator import MrpackValidationError, validate_exported_mrpack
 
 
 def manifest():
@@ -124,25 +126,33 @@ class ValidateMrpackTests(unittest.TestCase):
                 invalid["files"][0][key] = value
                 self.assert_invalid(invalid)
 
+    def exported(self, filename, environment='client_and_server'):
+        client = Mock()
+        client.resolve.return_value = [{
+            'source': 'modrinth', 'project_id': 'abc', 'title': 'Prueba', 'file_id': 'v1',
+            'file': {'filename': filename, 'sha1': 'a' * 40, 'sha512': 'b' * 128, 'size': 1200,
+                     'download_url': 'https://cdn.modrinth.com/data/abc/versions/v1/' + filename,
+                     'environment': environment}}]
+        return build_mrpack(self.target, 'Ejemplo', '1.20.1', 'Fabric', '0.16.10',
+                            [{'source': 'modrinth', 'project_id': 'abc', 'title': 'Prueba'}], client=client)
+
+    def test_exporter_output_passes_validation(self):
+        result = self.exported('prueba.jar', 'server_only')
+        self.assertEqual(result['mods'], 1)
+        with ZipFile(self.target) as z:
+            self.assertEqual(z.namelist(), ['modrinth.index.json'])
+            entry = json.loads(z.read('modrinth.index.json'))['files'][0]
+        self.assertEqual(entry['env'], {'client': 'optional', 'server': 'required'})
+
     def test_failed_export_preserves_previous_file(self):
         previous = b"existing project"
-        self.target.write_bytes(previous)
-        fake_catalog = Mock()
-        fake_catalog.resolve.return_value = [{
-            "project_id": "abc", "title": "Unsafe", "environment": "client_and_server",
-            "file": {
-                "filename": "../escape.jar",
-                "hashes": {"sha1": "a" * 40, "sha512": "b" * 128},
-                "url": "https://cdn.modrinth.com/data/x/escape.jar",
-                "size": 1200,
-            },
-        }]
-        with self.assertRaises(PublicCatalogError):
-            export_mrpack(self.target, "Example", "1.20.1", "Fabric", "0.16.10",
-                          [{"project_id": "abc", "title": "Unsafe"}],
-                          catalog=fake_catalog)
-        self.assertEqual(self.target.read_bytes(), previous)
-
+        for unsafe in ('../escape.jar', 'CON.jar', 'a<b>.jar'):
+            with self.subTest(name=unsafe):
+                self.target.write_bytes(previous)
+                with self.assertRaises(CatalogError):
+                    self.exported(unsafe)
+                self.assertEqual(self.target.read_bytes(), previous)
+                self.assertEqual(sorted(p.name for p in Path(self.temp.name).iterdir()), ['pack.mrpack'])
 
 if __name__ == "__main__":
     unittest.main()
